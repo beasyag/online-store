@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-sand text-ink font-sans antialiased;
+  background-image:
+    radial-gradient(circle at top left, rgba(240, 127, 79, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(30, 127, 116, 0.14), transparent 24%),
+    linear-gradient(180deg, #fffdf8 0%, #f8f3eb 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(23, 32, 51, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 32, 51, 0.028) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent 82%);
+}
+
+a {
+  @apply transition-colors duration-200;
+}
+
+.shell {
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+.panel {
+  @apply rounded-3xl border border-white/70 bg-white/90 shadow-soft backdrop-blur;
+}
+
+.panel-dark {
+  @apply rounded-[2rem] border border-white/10 bg-ink text-white shadow-soft;
+}
+
+.section-block {
+  @apply rounded-[2rem] border border-white/70 bg-white/70 p-5 shadow-soft backdrop-blur sm:p-7;
+}
+
+.metric-card {
+  @apply rounded-[1.6rem] border border-white/80 bg-white/95 p-5 shadow-soft;
+}
+
+.pill-link {
+  @apply inline-flex items-center rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:-translate-y-0.5 hover:border-clay hover:text-ink;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-full bg-ink px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white;
+}
+
+.section-title {
+  @apply font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl;
+}
+
+.muted {
+  @apply text-sm text-slate-500;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-2xl bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:border-clay hover:text-clay;
+}
+
+.field {
+  @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-clay focus:ring-2 focus:ring-clay/20;
+}

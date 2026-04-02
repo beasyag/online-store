@@ -1,0 +1,225 @@
+from django.db.models import DecimalField, ExpressionWrapper, F, Q
+from django.http import Http404
+from django.shortcuts import get_object_or_404
+from rest_framework import generics
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
+from favorites.models import Favorite
+from recommendations.services import get_similar_products
+from users.models import User
+
+from .models import Category, Product, ProductViewHistory, Tag
+from .permissions import IsSellerOwnerOrReadOnly
+from .serializers import (
+    CategorySerializer,
+    ProductCardSerializer,
+    ProductDetailSerializer,
+    ProductWriteSerializer,
+    TagSerializer,
+)
+from .services import get_product_queryset, unique_offer_groups
+
+
+def _favorite_ids_for_user(user):
+    if not user.is_authenticated:
+        return set()
+    return set(Favorite.objects.filter(user=user).values_list("product_id", flat=True))
+
+
+class CategoryListAPIView(generics.ListAPIView):
+    serializer_class = CategorySerializer
+    queryset = Category.objects.all()
+    permission_classes = [AllowAny]
+
+
+class TagListAPIView(generics.ListAPIView):
+    serializer_class = TagSerializer
+    queryset = Tag.objects.all()
+    permission_classes = [AllowAny]
+
+
+class ProductListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsSellerOwnerOrReadOnly]
+
+    def get_queryset(self):
+        request = self.request
+        user = request.user
+        mine_only = request.query_params.get("mine") == "1"
+        include_inactive = bool(
+            user.is_authenticated and user.role in {User.Role.SELLER, User.Role.ADMIN} and mine_only
+        )
+        queryset = get_product_queryset(include_inactive=include_inactive)
+
+        if mine_only and hasattr(user, "seller_profile"):
+            queryset = queryset.filter(seller=user.seller_profile)
+
+        query = request.query_params.get("q")
+        if query:
+            queryset = queryset.filter(Q(name__icontains=query) | Q(description__icontains=query))
+
+        category = request.query_params.get("category")
+        if category:
+            if category.isdigit():
+                queryset = queryset.filter(category_id=int(category))
+            else:
+                queryset = queryset.filter(category__slug=category)
+
+        seller = request.query_params.get("seller")
+        if seller and seller.isdigit():
+            queryset = queryset.filter(seller_id=int(seller))
+
+        tag = request.query_params.get("tag")
+        if tag:
+            if tag.isdigit():
+                queryset = queryset.filter(tags__id=int(tag))
+            else:
+                queryset = queryset.filter(tags__slug=tag)
+
+        min_price = request.query_params.get("min_price")
+        if min_price:
+            queryset = queryset.filter(price__gte=min_price)
+
+        max_price = request.query_params.get("max_price")
+        if max_price:
+            queryset = queryset.filter(price__lte=max_price)
+
+        ordering = request.query_params.get("ordering")
+        ordering_map = {
+            "price_asc": "price",
+            "price_desc": "-price",
+            "popular": "-purchases_count",
+            "new": "-created_at",
+            "rating": "-average_rating",
+        }
+        if ordering in ordering_map:
+            queryset = queryset.order_by(ordering_map[ordering], "-created_at")
+        else:
+            queryset = queryset.order_by("-created_at")
+
+        return queryset.distinct()
+
+    def get_serializer_class(self):
+        return ProductWriteSerializer if self.request.method == "POST" else ProductCardSerializer
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["favorite_ids"] = _favorite_ids_for_user(self.request.user)
+        return context
+
+    def list(self, request, *args, **kwargs):
+        if request.method != "GET":
+            return super().list(request, *args, **kwargs)
+
+        mine_only = request.query_params.get("mine") == "1"
+        queryset = self.get_queryset()
+        if mine_only:
+            return super().list(request, *args, **kwargs)
+
+        unique_products = unique_offer_groups(list(queryset))
+        page = self.paginate_queryset(unique_products)
+        serializer = self.get_serializer(page if page is not None else unique_products, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
+
+
+class ProductRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsSellerOwnerOrReadOnly]
+
+    def get_queryset(self):
+        return get_product_queryset(include_inactive=True)
+
+    def get_serializer_class(self):
+        return ProductWriteSerializer if self.request.method in {"PUT", "PATCH"} else ProductDetailSerializer
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["favorite_ids"] = _favorite_ids_for_user(self.request.user)
+        return context
+
+    def get_object(self):
+        obj = super().get_object()
+        user = self.request.user
+        can_manage = bool(
+            user.is_authenticated
+            and (user.role == User.Role.ADMIN or getattr(getattr(user, "seller_profile", None), "id", None) == obj.seller_id)
+        )
+        if not obj.is_active and not can_manage:
+            raise Http404("Product does not exist.")
+        return obj
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.is_active:
+            Product.objects.filter(pk=instance.pk).update(views_count=F("views_count") + 1)
+            instance.views_count += 1
+        if request.user.is_authenticated:
+            ProductViewHistory.objects.create(user=request.user, product=instance)
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+
+class ProductSimilarAPIView(generics.ListAPIView):
+    serializer_class = ProductCardSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        product = get_object_or_404(get_product_queryset(), pk=self.kwargs["pk"])
+        return get_similar_products(product=product, limit=8)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["favorite_ids"] = _favorite_ids_for_user(self.request.user)
+        return context
+
+
+class ProductPopularAPIView(generics.ListAPIView):
+    serializer_class = ProductCardSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        products = get_product_queryset().order_by("-purchases_count", "-views_count", "-average_rating")[:48]
+        return unique_offer_groups(products, limit=12)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["favorite_ids"] = _favorite_ids_for_user(self.request.user)
+        return context
+
+
+class ProductDealsAPIView(generics.ListAPIView):
+    serializer_class = ProductCardSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        discount_amount = ExpressionWrapper(
+            F("old_price") - F("price"),
+            output_field=DecimalField(max_digits=10, decimal_places=2),
+        )
+        products = (
+            get_product_queryset()
+            .filter(old_price__isnull=False, old_price__gt=F("price"))
+            .annotate(discount_amount=discount_amount)
+            .order_by("-discount_amount", "-purchases_count", "-views_count")[:48]
+        )
+        return unique_offer_groups(products, limit=8)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["favorite_ids"] = _favorite_ids_for_user(self.request.user)
+        return context
+
+
+class ProductNewAPIView(generics.ListAPIView):
+    serializer_class = ProductCardSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        products = get_product_queryset().order_by("-created_at")[:48]
+        return unique_offer_groups(products, limit=12)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["favorite_ids"] = _favorite_ids_for_user(self.request.user)
+        return context
