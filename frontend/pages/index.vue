@@ -27,7 +27,7 @@ const catalogQuery = computed(() =>
 );
 
 const { data: dealsData } = await useAsyncData("deals-products", () => api.get<PaginatedResponse<Product>>("/products/deals/"));
-const { data: catalogData, pending: catalogPending, refresh: refreshCatalog } = await useAsyncData(
+const { data: catalogData, pending: catalogPending, error: catalogError, refresh: refreshCatalog } = await useAsyncData(
   "catalog",
   () => api.get<PaginatedResponse<Product>>(`/products/?${catalogQuery.value}`),
   { watch: [catalogQuery] }
@@ -44,6 +44,24 @@ const dealProducts = computed(() => usePaginatedResults<Product>(dealsData.value
 const products = computed(() => usePaginatedResults<Product>(catalogData.value));
 const popularProducts = computed(() => usePaginatedResults<Product>(popularData.value));
 const newProducts = computed(() => usePaginatedResults<Product>(newData.value));
+const catalogErrorMessage = computed(() =>
+  catalogError.value ? "Не удалось загрузить каталог. Обновите страницу или попробуйте позже." : ""
+);
+const recommendationReasons = computed(() => {
+  if (recommendationsData.value?.strategy === "personalized") {
+    return [
+      "Похожие категории из просмотренных товаров",
+      "Сигналы из корзины, избранного и покупок",
+      "Усиление популярных и высоко оценённых позиций"
+    ];
+  }
+
+  return [
+    "Подборка по текущей популярности",
+    "Учитываются просмотры, покупки и рейтинг",
+    "Хороший старт для нового или анонимного пользователя"
+  ];
+});
 
 watch(
   () => auth.loggedIn,
@@ -74,6 +92,9 @@ const runSearch = () => refreshCatalog();
       <div v-if="catalogPending" class="panel p-8 text-center text-sm text-slate-500">
         Загружаем товары...
       </div>
+      <div v-else-if="catalogErrorMessage" class="panel border border-rose-200 p-8 text-center text-sm text-rose-500">
+        {{ catalogErrorMessage }}
+      </div>
       <div v-else class="section-block">
         <ProductGrid :products="products" />
       </div>
@@ -83,6 +104,7 @@ const runSearch = () => refreshCatalog();
       title="Рекомендуем вам"
       :subtitle="recommendationsData?.strategy === 'personalized' ? 'На основе просмотров, корзины и покупок' : 'Популярные товары для новых посетителей'"
       :products="recommendationsData?.results || []"
+      :reasons="recommendationReasons"
     />
 
     <RecommendationSection title="Популярное" subtitle="Товары, которые сейчас смотрят и покупают" :products="popularProducts" />

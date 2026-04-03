@@ -6,15 +6,15 @@ from django.db.models.functions import Coalesce
 from .models import Product
 
 
-def get_product_queryset(include_inactive: bool = False):
-    queryset = (
-        Product.objects.select_related("seller__user", "category")
-        .prefetch_related("tags")
-        .annotate(
-            average_rating=Coalesce(Avg("reviews__rating"), Value(0.0)),
-            reviews_count=Count("reviews", distinct=True),
-        )
+def get_product_queryset(include_inactive: bool = False, include_tags: bool = True, only_primary: bool = False):
+    queryset = Product.objects.select_related("seller", "category").annotate(
+        average_rating=Coalesce(Avg("reviews__rating"), Value(0.0)),
+        reviews_count=Count("reviews", distinct=True),
     )
+    if include_tags:
+        queryset = queryset.prefetch_related("tags")
+    if only_primary:
+        queryset = queryset.filter(is_primary_offer=True)
     return queryset if include_inactive else queryset.filter(is_active=True)
 
 

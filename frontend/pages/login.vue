@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useApiError } from "~/composables/useApiError";
 import { useAuthStore } from "~/stores/auth";
 
 const auth = useAuthStore();
+const { getErrorMessage } = useApiError();
 
 const form = reactive({
   username: "",
@@ -15,7 +17,7 @@ const submit = async () => {
     await auth.login(form);
     navigateTo("/");
   } catch (error: any) {
-    errorMessage.value = error?.data?.detail || "Не удалось выполнить вход.";
+    errorMessage.value = getErrorMessage(error, "Не удалось выполнить вход. Проверьте логин и пароль.");
   }
 };
 </script>

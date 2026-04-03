@@ -1,21 +1,30 @@
 <script setup lang="ts">
 import type { Order } from "~/types";
+import { useApiError } from "~/composables/useApiError";
 import { useApiClient } from "~/composables/useApiClient";
 import { useFormatters } from "~/composables/useFormatters";
 import { useAuthStore } from "~/stores/auth";
 import { useCartStore } from "~/stores/cart";
+import { useNotificationsStore } from "~/stores/notifications";
 
 const auth = useAuthStore();
 const cartStore = useCartStore();
 const api = useApiClient();
+const notifications = useNotificationsStore();
+const { getErrorMessage } = useApiError();
 const { formatMoney } = useFormatters();
 
 const orderSuccess = ref<Order | null>(null);
 const orderError = ref("");
+const pageError = ref("");
 
 await auth.bootstrap();
 if (auth.loggedIn) {
-  await cartStore.fetchCart();
+  try {
+    await cartStore.fetchCart();
+  } catch (error: any) {
+    pageError.value = getErrorMessage(error, "Не удалось загрузить корзину.");
+  }
 }
 
 const checkout = async () => {
@@ -26,9 +35,22 @@ const checkout = async () => {
   try {
     orderSuccess.value = await api.post<Order>("/orders/create/");
     await cartStore.fetchCart();
+    notifications.success("Заказ успешно создан.");
   } catch (error: any) {
-    orderError.value = error?.data?.detail || "Не удалось создать заказ.";
+    orderError.value = getErrorMessage(error, "Не удалось создать заказ.");
   }
+};
+
+const updateItemQuantity = async (itemId: number, quantity: number) => {
+  try {
+    await cartStore.updateItem(itemId, quantity);
+  } catch {}
+};
+
+const removeItem = async (itemId: number) => {
+  try {
+    await cartStore.removeItem(itemId);
+  } catch {}
 };
 </script>
 
@@ -48,6 +70,10 @@ const checkout = async () => {
     </div>
 
     <template v-else>
+      <div v-if="pageError" class="panel border border-rose-200 p-5 text-sm text-rose-500">
+        {{ pageError }}
+      </div>
+
       <div v-if="orderSuccess" class="panel border border-pine/20 p-6">
         <p class="text-sm font-semibold uppercase tracking-[0.16em] text-pine">Заказ создан</p>
         <h2 class="mt-3 font-display text-2xl font-bold text-ink">Заказ #{{ orderSuccess.id }} принят в обработку</h2>
@@ -65,8 +91,8 @@ const checkout = async () => {
             v-for="item in cartStore.cart?.items || []"
             :key="item.id"
             :item="item"
-            @remove="cartStore.removeItem(item.id)"
-            @update-quantity="cartStore.updateItem(item.id, $event)"
+            @remove="removeItem(item.id)"
+            @update-quantity="updateItemQuantity(item.id, $event)"
           />
           <div v-if="!(cartStore.cart?.items?.length)" class="panel p-8 text-center text-sm text-slate-500">
             Корзина пуста. Вернитесь в каталог и добавьте несколько товаров.

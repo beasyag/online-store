@@ -13,8 +13,18 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
 
-SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-development-secret-key")
-DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+def env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+
+
+DEBUG = env_bool("DEBUG", True)
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "unsafe-development-secret-key"
+    else:
+        raise RuntimeError("SECRET_KEY must be set when DEBUG=False.")
+
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "127.0.0.1,localhost,testserver")
 
 INSTALLED_APPS = [
@@ -92,12 +102,21 @@ AUTH_USER_MODEL = "users.User"
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "marketflow-default",
+    }
+}
+CACHE_TTL_PUBLIC_LISTS = int(os.getenv("CACHE_TTL_PUBLIC_LISTS", "120"))
+PRODUCT_VIEW_COOLDOWN_MINUTES = int(os.getenv("PRODUCT_VIEW_COOLDOWN_MINUTES", "30"))
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": int(os.getenv("API_PAGE_SIZE", "12")),
@@ -108,3 +127,12 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.getenv("REFRESH_TOKEN_DAYS", "7"))),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+# Development uses local HTTP frontend/backend. For production, move these into
+# a dedicated environment file and set HTTPS/cookie/security options explicitly.
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

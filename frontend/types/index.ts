@@ -142,3 +142,22 @@ export interface RecommendationResponse {
   strategy: "personalized" | "popular_fallback";
   results: Product[];
 }
+
+export interface SellerDashboardResponse {
+  product_count: number;
+  orders_count: number;
+  sales_count: number;
+  total_sales: string;
+  top_products: Product[];
+  recent_orders: Array<{
+    order_id: number;
+    created_at: string;
+    status: string;
+    quantity: number;
+    price_at_purchase: string;
+    product: {
+      id: number;
+      name: string;
+    };
+  }>;
+}

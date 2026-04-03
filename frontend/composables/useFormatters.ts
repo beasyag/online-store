@@ -111,6 +111,17 @@ export const useFormatters = () => {
   const formatCategoryName = (value?: string | null) => (value ? categoryNames[value] || value : "");
   const formatTagName = (value?: string | null) => (value ? tagNames[value] || value : "");
   const formatOrderStatus = (value?: string | null) => (value ? orderStatuses[value] || value : "");
+  const formatOrderStatusHint = (value?: string | null) => {
+    const hints: Record<string, string> = {
+      pending: "Заказ создан и ожидает подтверждения.",
+      paid: "Оплата получена, заказ передан в обработку.",
+      processing: "Продавец комплектует и подтверждает позиции.",
+      shipped: "Заказ передан в доставку.",
+      completed: "Заказ завершён и доставлен.",
+      canceled: "Заказ отменён."
+    };
+    return value ? hints[value] || "" : "";
+  };
 
   return {
     formatMoney,
@@ -118,6 +129,7 @@ export const useFormatters = () => {
     formatRating,
     formatCategoryName,
     formatTagName,
-    formatOrderStatus
+    formatOrderStatus,
+    formatOrderStatusHint
   };
 };

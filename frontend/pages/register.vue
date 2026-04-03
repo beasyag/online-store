@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useApiError } from "~/composables/useApiError";
 import { useAuthStore } from "~/stores/auth";
 
 const auth = useAuthStore();
+const { getErrorMessage } = useApiError();
 
 const form = reactive({
   username: "",
@@ -22,7 +24,7 @@ const submit = async () => {
     await auth.register(form);
     navigateTo("/");
   } catch (error: any) {
-    errorMessage.value = error?.data?.detail || "Не удалось зарегистрироваться.";
+    errorMessage.value = getErrorMessage(error, "Не удалось зарегистрироваться. Проверьте заполнение формы.");
   }
 };
 </script>

@@ -59,6 +59,7 @@ class ProductCardSerializer(ProductSummarySerializer):
 
     class Meta(ProductSummarySerializer.Meta):
         fields = ProductSummarySerializer.Meta.fields + (
+            "description",
             "tags",
             "views_count",
             "purchases_count",
@@ -92,7 +93,7 @@ class ProductDetailSerializer(ProductCardSerializer):
                 or getattr(getattr(request.user, "seller_profile", None), "id", None) == obj.seller_id
             )
         )
-        queryset = get_product_queryset(include_inactive=can_manage).filter(offer_group=obj.offer_group)
+        queryset = get_product_queryset(include_inactive=can_manage, include_tags=False).filter(offer_group=obj.offer_group)
         if not can_manage:
             queryset = queryset.filter(is_active=True)
         offers = list(queryset.order_by("price", "-average_rating", "-purchases_count", "seller__shop_name"))

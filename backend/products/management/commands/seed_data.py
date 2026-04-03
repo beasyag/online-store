@@ -14,7 +14,7 @@ from faker import Faker
 from cart.models import Cart, CartItem
 from favorites.models import Favorite
 from orders.models import Order, OrderItem
-from products.models import Category, Product, ProductViewHistory, Tag
+from products.models import Category, Product, ProductViewHistory, Tag, refresh_primary_offer_for_group
 from reviews.models import Review
 from sellers.models import SellerProfile
 
@@ -238,6 +238,8 @@ class Command(BaseCommand):
         through_model.objects.bulk_create(through_rows, ignore_conflicts=True, batch_size=1000)
         created_ids = [product.id for product in created_products.values()]
         products = list(Product.objects.filter(id__in=created_ids).select_related("category", "seller"))
+        for offer_group in {product.offer_group for product in products if product.offer_group}:
+            refresh_primary_offer_for_group(offer_group)
         return products, weights, original_stock
 
     def _seed_orders(self, products, product_weights, buyers, order_count):

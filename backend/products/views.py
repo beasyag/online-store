@@ -1,6 +1,11 @@
+from datetime import timedelta
+
+from django.conf import settings
+from django.core.cache import cache
 from django.db.models import DecimalField, ExpressionWrapper, F, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -18,13 +23,21 @@ from .serializers import (
     ProductWriteSerializer,
     TagSerializer,
 )
-from .services import get_product_queryset, unique_offer_groups
+from .services import get_product_queryset
 
 
 def _favorite_ids_for_user(user):
     if not user.is_authenticated:
         return set()
     return set(Favorite.objects.filter(user=user).values_list("product_id", flat=True))
+
+
+def _cached_public_products(cache_key: str, fetcher):
+    products = cache.get(cache_key)
+    if products is None:
+        products = list(fetcher())
+        cache.set(cache_key, products, timeout=settings.CACHE_TTL_PUBLIC_LISTS)
+    return products
 
 
 class CategoryListAPIView(generics.ListAPIView):
@@ -49,7 +62,7 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
         include_inactive = bool(
             user.is_authenticated and user.role in {User.Role.SELLER, User.Role.ADMIN} and mine_only
         )
-        queryset = get_product_queryset(include_inactive=include_inactive)
+        queryset = get_product_queryset(include_inactive=include_inactive, only_primary=not mine_only)
 
         if mine_only and hasattr(user, "seller_profile"):
             queryset = queryset.filter(seller=user.seller_profile)
@@ -110,18 +123,7 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
     def list(self, request, *args, **kwargs):
         if request.method != "GET":
             return super().list(request, *args, **kwargs)
-
-        mine_only = request.query_params.get("mine") == "1"
-        queryset = self.get_queryset()
-        if mine_only:
-            return super().list(request, *args, **kwargs)
-
-        unique_products = unique_offer_groups(list(queryset))
-        page = self.paginate_queryset(unique_products)
-        serializer = self.get_serializer(page if page is not None else unique_products, many=True)
-        if page is not None:
-            return self.get_paginated_response(serializer.data)
-        return Response(serializer.data)
+        return super().list(request, *args, **kwargs)
 
 
 class ProductRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -155,7 +157,14 @@ class ProductRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
             Product.objects.filter(pk=instance.pk).update(views_count=F("views_count") + 1)
             instance.views_count += 1
         if request.user.is_authenticated:
-            ProductViewHistory.objects.create(user=request.user, product=instance)
+            recent_view_threshold = timezone.now() - timedelta(minutes=settings.PRODUCT_VIEW_COOLDOWN_MINUTES)
+            already_tracked_recently = ProductViewHistory.objects.filter(
+                user=request.user,
+                product=instance,
+                viewed_at__gte=recent_view_threshold,
+            ).exists()
+            if not already_tracked_recently:
+                ProductViewHistory.objects.create(user=request.user, product=instance)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
@@ -179,8 +188,10 @@ class ProductPopularAPIView(generics.ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        products = get_product_queryset().order_by("-purchases_count", "-views_count", "-average_rating")[:48]
-        return unique_offer_groups(products, limit=12)
+        return _cached_public_products(
+            "products:popular:v1",
+            lambda: get_product_queryset(only_primary=True).order_by("-purchases_count", "-views_count", "-average_rating")[:12],
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -193,17 +204,22 @@ class ProductDealsAPIView(generics.ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        discount_amount = ExpressionWrapper(
-            F("old_price") - F("price"),
-            output_field=DecimalField(max_digits=10, decimal_places=2),
+        def fetch():
+            discount_amount = ExpressionWrapper(
+                F("old_price") - F("price"),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            )
+            return (
+                get_product_queryset(only_primary=True)
+                .filter(old_price__isnull=False, old_price__gt=F("price"))
+                .annotate(discount_amount=discount_amount)
+                .order_by("-discount_amount", "-purchases_count", "-views_count")[:8]
+            )
+
+        return _cached_public_products(
+            "products:deals:v1",
+            fetch,
         )
-        products = (
-            get_product_queryset()
-            .filter(old_price__isnull=False, old_price__gt=F("price"))
-            .annotate(discount_amount=discount_amount)
-            .order_by("-discount_amount", "-purchases_count", "-views_count")[:48]
-        )
-        return unique_offer_groups(products, limit=8)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -216,8 +232,10 @@ class ProductNewAPIView(generics.ListAPIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        products = get_product_queryset().order_by("-created_at")[:48]
-        return unique_offer_groups(products, limit=12)
+        return _cached_public_products(
+            "products:new:v1",
+            lambda: get_product_queryset(only_primary=True).order_by("-created_at")[:12],
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

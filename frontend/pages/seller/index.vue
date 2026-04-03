@@ -1,27 +1,8 @@
 <script setup lang="ts">
-import type { Product, Seller } from "~/types";
+import type { Seller, SellerDashboardResponse } from "~/types";
 import { useApiClient } from "~/composables/useApiClient";
 import { useFormatters } from "~/composables/useFormatters";
 import { useAuthStore } from "~/stores/auth";
-
-interface SellerDashboardResponse {
-  product_count: number;
-  orders_count: number;
-  sales_count: number;
-  total_sales: string;
-  top_products: Product[];
-  recent_orders: Array<{
-    order_id: number;
-    created_at: string;
-    status: string;
-    quantity: number;
-    price_at_purchase: string;
-    product: {
-      id: number;
-      name: string;
-    };
-  }>;
-}
 
 const auth = useAuthStore();
 const api = useApiClient();
@@ -38,6 +19,37 @@ const form = reactive({
   shop_name: "",
   description: "",
   avatar: "https://picsum.photos/seed/new-seller/240/240"
+});
+const dashboardHighlights = computed(() => {
+  if (!dashboard.value) {
+    return [];
+  }
+
+  const averageOrderValue = dashboard.value.orders_count
+    ? Number(dashboard.value.total_sales) / dashboard.value.orders_count
+    : 0;
+  const salesPerProduct = dashboard.value.product_count
+    ? dashboard.value.sales_count / dashboard.value.product_count
+    : 0;
+  const topProduct = dashboard.value.top_products[0];
+
+  return [
+    {
+      title: "Средний чек",
+      value: formatMoney(averageOrderValue),
+      hint: "Средняя сумма заказа, где есть ваши товары."
+    },
+    {
+      title: "Продаж на товар",
+      value: salesPerProduct.toFixed(1),
+      hint: "Среднее число проданных единиц на одну карточку."
+    },
+    {
+      title: "Лидер каталога",
+      value: topProduct?.name || "Пока нет данных",
+      hint: topProduct ? "Самый сильный товар по продажам и интересу." : "Появится после первых заказов."
+    }
+  ];
 });
 
 const loadSellerData = async () => {
@@ -107,6 +119,14 @@ const createProfile = async () => {
       </section>
 
       <DashboardWidgets :metrics="dashboard" />
+
+      <section class="grid gap-4 lg:grid-cols-3">
+        <article v-for="highlight in dashboardHighlights" :key="highlight.title" class="panel p-5">
+          <p class="text-sm uppercase tracking-[0.12em] text-slate-500">{{ highlight.title }}</p>
+          <p class="mt-3 font-display text-2xl font-bold text-ink">{{ highlight.value }}</p>
+          <p class="mt-2 text-sm text-slate-500">{{ highlight.hint }}</p>
+        </article>
+      </section>
 
       <section class="space-y-5">
         <div>

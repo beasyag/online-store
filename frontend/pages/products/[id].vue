@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PaginatedResponse, Product, Review } from "~/types";
 import { useApiClient } from "~/composables/useApiClient";
+import { useApiError } from "~/composables/useApiError";
 import { useFormatters } from "~/composables/useFormatters";
 import { usePaginatedResults } from "~/composables/usePaginatedResults";
 import { useAuthStore } from "~/stores/auth";
@@ -12,6 +13,7 @@ const api = useApiClient();
 const auth = useAuthStore();
 const cartStore = useCartStore();
 const favoritesStore = useFavoritesStore();
+const { getErrorMessage } = useApiError();
 const { formatMoney, formatRating, formatCategoryName, formatTagName } = useFormatters();
 
 const reviewForm = reactive({
@@ -20,10 +22,11 @@ const reviewForm = reactive({
 });
 const reviewError = ref("");
 const reviewSuccess = ref("");
+const productLoadError = ref("");
 
 const productId = computed(() => Number(route.params.id));
 
-const { data: product, refresh: refreshProduct } = await useAsyncData(
+const { data: product, error: productError, refresh: refreshProduct } = await useAsyncData(
   `product-${productId.value}`,
   () => api.get<Product>(`/products/${productId.value}/`),
   { watch: [productId] }
@@ -51,7 +54,9 @@ const addToCart = async () => {
   if (!auth.loggedIn) {
     return navigateTo("/login");
   }
-  await cartStore.addToCart(product.value.id, 1);
+  try {
+    await cartStore.addToCart(product.value.id, 1);
+  } catch {}
 };
 
 const toggleFavorite = async () => {
@@ -61,8 +66,10 @@ const toggleFavorite = async () => {
   if (!auth.loggedIn) {
     return navigateTo("/login");
   }
-  await favoritesStore.toggleFavorite(product.value.id);
-  await refreshProduct();
+  try {
+    await favoritesStore.toggleFavorite(product.value.id);
+    await refreshProduct();
+  } catch {}
 };
 
 const submitReview = async () => {
@@ -78,9 +85,13 @@ const submitReview = async () => {
     reviewSuccess.value = "Отзыв успешно добавлен.";
     await Promise.all([refreshReviews(), refreshProduct(), refreshSimilar()]);
   } catch (error: any) {
-    reviewError.value = error?.data?.detail || "Не удалось отправить отзыв.";
+    reviewError.value = getErrorMessage(error, "Не удалось отправить отзыв.");
   }
 };
+
+watchEffect(() => {
+  productLoadError.value = productError.value ? "Не удалось загрузить товар. Проверьте ссылку или попробуйте позже." : "";
+});
 </script>
 
 <template>
@@ -198,5 +209,10 @@ const submitReview = async () => {
     </section>
 
     <RecommendationSection title="Похожие товары" subtitle="Похожие по категории, цене и тегам" :products="similarProducts" />
+  </div>
+  <div v-else class="shell">
+    <div class="panel border border-rose-200 p-8 text-center text-sm text-rose-500">
+      {{ productLoadError }}
+    </div>
   </div>
 </template>

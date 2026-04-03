@@ -314,6 +314,20 @@ After seed:
 - admin credentials: `admin / admin12345`
 - sellers and buyers password: `market12345`
 
+## Demo Scenario
+
+Use this sequence for a short live demonstration of the MVP:
+
+1. Register a buyer account on the frontend and log in.
+2. Open the catalog, show product cards, discounts, popularity/new badges and the product detail page.
+3. Add one or two products to favorites and cart.
+4. Open the cart page, update quantity and create an order.
+5. Show order history and explain the order status block.
+6. Return to the home page and show the personalized recommendation section with the "why recommended" explanation.
+7. Log in as a seller account or create a seller profile.
+8. Open the seller dashboard, explain key metrics, top products and recent seller order activity.
+9. Open seller product management pages and show product creation/editing flow if needed.
+
 ## Seed Large Test Data
 
 ```bash

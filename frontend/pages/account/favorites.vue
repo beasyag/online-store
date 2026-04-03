@@ -1,13 +1,20 @@
 <script setup lang="ts">
+import { useApiError } from "~/composables/useApiError";
 import { useAuthStore } from "~/stores/auth";
 import { useFavoritesStore } from "~/stores/favorites";
 
 const auth = useAuthStore();
 const favoritesStore = useFavoritesStore();
+const { getErrorMessage } = useApiError();
+const pageError = ref("");
 
 await auth.bootstrap();
 if (auth.loggedIn) {
-  await favoritesStore.fetchFavorites();
+  try {
+    await favoritesStore.fetchFavorites();
+  } catch (error: any) {
+    pageError.value = getErrorMessage(error, "Не удалось загрузить избранное.");
+  }
 }
 
 const favoriteProducts = computed(() => favoritesStore.items.map((item) => item.product));
@@ -24,11 +31,15 @@ const favoriteProducts = computed(() => favoritesStore.items.map((item) => item.
       Войдите, чтобы открыть избранное.
     </div>
 
-    <ProductGrid
-      v-else
-      :products="favoriteProducts"
-      empty-title="Пока нет избранных товаров"
-      empty-text="Добавляйте товары в избранное с карточки товара."
-    />
+    <div v-else class="space-y-4">
+      <div v-if="pageError" class="panel border border-rose-200 p-5 text-sm text-rose-500">
+        {{ pageError }}
+      </div>
+      <ProductGrid
+        :products="favoriteProducts"
+        empty-title="Пока нет избранных товаров"
+        empty-text="Добавляйте товары в избранное с карточки товара."
+      />
+    </div>
   </div>
 </template>

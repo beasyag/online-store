@@ -1,3 +1,5 @@
+from django.db.models import Q
+
 from cart.models import CartItem
 from favorites.models import Favorite
 from orders.models import OrderItem
@@ -49,15 +51,15 @@ def popularity_bonus(product: Product) -> float:
 
 
 def get_popular_products(limit: int = 12):
-    return list(get_product_queryset().order_by("-purchases_count", "-views_count", "-average_rating")[:limit])
+    return list(get_product_queryset(only_primary=True).order_by("-purchases_count", "-views_count", "-average_rating")[:limit])
 
 
 def get_new_products(limit: int = 12):
-    return list(get_product_queryset().order_by("-created_at")[:limit])
+    return list(get_product_queryset(only_primary=True).order_by("-created_at")[:limit])
 
 
 def get_similar_products(product: Product, limit: int = 8):
-    candidates = list(get_product_queryset().exclude(pk=product.pk))
+    candidates = list(get_product_queryset(only_primary=True).exclude(pk=product.pk))
     scored_products = []
     for candidate in candidates:
         score = base_similarity_score(candidate, product) + popularity_bonus(candidate)
@@ -79,17 +81,18 @@ def _fetch_reference_products(product_ids: set[int]):
     return [reference_map[product_id] for product_id in product_ids if product_id in reference_map]
 
 
-def has_personalization_signals(user) -> bool:
+def _get_user_signal_product_ids(user) -> dict[str, set[int]]:
     if not getattr(user, "is_authenticated", False):
-        return False
-    return any(
-        [
-            ProductViewHistory.objects.filter(user=user).exists(),
-            Favorite.objects.filter(user=user).exists(),
-            CartItem.objects.filter(cart__user=user).exists(),
-            OrderItem.objects.filter(order__user=user).exists(),
-        ]
-    )
+        return {"viewed": set(), "favorite": set(), "cart": set(), "purchased": set()}
+
+    return {
+        "viewed": set(
+            ProductViewHistory.objects.filter(user=user).order_by("-viewed_at").values_list("product_id", flat=True)[:40]
+        ),
+        "favorite": set(Favorite.objects.filter(user=user).values_list("product_id", flat=True)[:40]),
+        "cart": set(CartItem.objects.filter(cart__user=user).values_list("product_id", flat=True)[:40]),
+        "purchased": set(OrderItem.objects.filter(order__user=user).values_list("product_id", flat=True)[:40]),
+    }
 
 
 def _signal_score(candidate: Product, references: list[Product], weight: int) -> float:
@@ -101,27 +104,38 @@ def _signal_score(candidate: Product, references: list[Product], weight: int) ->
     return round((highest_similarity / MAX_BASE_SCORE) * weight, 2)
 
 
-def get_personalized_recommendations(user, limit: int = 12):
-    if not getattr(user, "is_authenticated", False):
-        return get_popular_products(limit=limit)
+def _candidate_queryset_for_signals(signal_products: dict[str, list[Product]], purchased_ids: set[int]):
+    category_ids = {product.category_id for products in signal_products.values() for product in products if product.category_id}
+    tag_ids = {tag.id for products in signal_products.values() for product in products for tag in product.tags.all()}
 
-    viewed_ids = set(ProductViewHistory.objects.filter(user=user).order_by("-viewed_at").values_list("product_id", flat=True)[:40])
-    favorite_ids = set(Favorite.objects.filter(user=user).values_list("product_id", flat=True)[:40])
-    cart_ids = set(CartItem.objects.filter(cart__user=user).values_list("product_id", flat=True)[:40])
-    purchased_ids = set(OrderItem.objects.filter(order__user=user).values_list("product_id", flat=True)[:40])
+    queryset = get_product_queryset(only_primary=True).exclude(id__in=purchased_ids)
+    if category_ids or tag_ids:
+        filters = Q()
+        if category_ids:
+            filters |= Q(category_id__in=category_ids)
+        if tag_ids:
+            filters |= Q(tags__id__in=tag_ids)
+        queryset = queryset.filter(filters)
+
+    return queryset.order_by("-purchases_count", "-views_count", "-average_rating", "-created_at").distinct()[:250]
+
+
+def get_recommendations_for_user(user, limit: int = 12):
+    if not getattr(user, "is_authenticated", False):
+        return get_popular_products(limit=limit), "popular_fallback"
+
+    signal_ids = _get_user_signal_product_ids(user)
+    purchased_ids = signal_ids["purchased"]
 
     signal_products = {
-        "viewed": _fetch_reference_products(viewed_ids),
-        "favorite": _fetch_reference_products(favorite_ids),
-        "cart": _fetch_reference_products(cart_ids),
-        "purchased": _fetch_reference_products(purchased_ids),
+        signal_name: _fetch_reference_products(product_ids) for signal_name, product_ids in signal_ids.items()
     }
 
     has_any_signal = any(signal_products.values())
     if not has_any_signal:
-        return get_popular_products(limit=limit)
+        return get_popular_products(limit=limit), "popular_fallback"
 
-    candidates = list(get_product_queryset().exclude(id__in=purchased_ids))
+    candidates = list(_candidate_queryset_for_signals(signal_products, purchased_ids))
     scored_products = []
 
     for candidate in candidates:
@@ -146,4 +160,4 @@ def get_personalized_recommendations(user, limit: int = 12):
         unique_products.append(product)
         if len(unique_products) >= limit:
             break
-    return unique_products
+    return unique_products, "personalized"
