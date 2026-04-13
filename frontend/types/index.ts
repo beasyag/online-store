@@ -108,11 +108,16 @@ export interface OrderItem {
 export interface Order {
   id: number;
   status: string;
+  payment_method: "cash_on_delivery" | "card_on_delivery" | "card_online";
   total_amount: string;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
   seller_total?: string;
+}
+
+export interface StripeCheckoutResponse {
+  checkout_url: string;
 }
 
 export interface FavoriteItem {

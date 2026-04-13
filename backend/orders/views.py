@@ -5,15 +5,22 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Order
-from .serializers import OrderSerializer, SellerOrderSerializer
-from .services import create_order_from_cart
+from .serializers import (
+    OrderCreateSerializer,
+    OrderSerializer,
+    SellerOrderSerializer,
+    StripeCheckoutConfirmSerializer,
+)
+from .services import confirm_order_payment, create_checkout_session_for_order, create_order_from_cart
 
 
 class OrderCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        order = create_order_from_cart(request.user)
+        serializer = OrderCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = create_order_from_cart(request.user, payment_method=serializer.validated_data["payment_method"])
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
@@ -31,6 +38,25 @@ class OrderDetailAPIView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return Order.objects.filter(user=self.request.user).prefetch_related("items__product", "items__seller")
+
+
+class OrderStripeCheckoutAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        order = Order.objects.filter(user=request.user).prefetch_related("items__product").get(pk=pk)
+        session = create_checkout_session_for_order(order)
+        return Response({"checkout_url": session.url}, status=status.HTTP_200_OK)
+
+
+class OrderStripeConfirmAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = StripeCheckoutConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = confirm_order_payment(request.user, serializer.validated_data["session_id"])
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
 
 
 class SellerOrderListAPIView(generics.ListAPIView):
@@ -68,4 +94,3 @@ class SellerOrderDetailAPIView(generics.RetrieveAPIView):
         context = super().get_serializer_context()
         context["seller"] = self.request.user.seller_profile
         return context
-

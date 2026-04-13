@@ -7,7 +7,7 @@ const cartStore = useCartStore();
 
 const links = computed(() => {
   const base = [
-    { label: "Каталог", to: "/" },
+    { label: "Каталог", to: "/catalog" },
     { label: "Корзина", to: "/cart" }
   ];
 

@@ -7,7 +7,7 @@ const props = defineProps<{
   sellerMode?: boolean;
 }>();
 
-const { formatDate, formatMoney, formatOrderStatus, formatOrderStatusHint } = useFormatters();
+const { formatDate, formatMoney, formatOrderStatus, formatOrderStatusHint, formatPaymentMethod } = useFormatters();
 
 const statusClass = computed(() => {
   const classes: Record<string, string> = {
@@ -39,6 +39,7 @@ const statusClass = computed(() => {
       </div>
     </div>
     <p class="mt-3 text-sm text-slate-500">{{ formatOrderStatusHint(order.status) }}</p>
+    <p class="mt-2 text-sm text-slate-500">Способ оплаты: {{ formatPaymentMethod(order.payment_method) }}</p>
 
     <div class="mt-5 space-y-3">
       <div

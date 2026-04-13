@@ -91,7 +91,7 @@ watch(
             <NuxtLink :to="`/products/${activeProduct.id}`" class="inline-flex items-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-ink transition hover:bg-slate-100">
               Смотреть предложение
             </NuxtLink>
-            <NuxtLink to="/#catalog" class="inline-flex items-center rounded-2xl border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+            <NuxtLink to="/catalog" class="inline-flex items-center rounded-2xl border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
               Перейти в каталог
             </NuxtLink>
           </div>

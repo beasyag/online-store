@@ -16,7 +16,7 @@ defineProps<{
         <p class="badge !bg-pine">{{ subtitle || "Подборка для вас" }}</p>
         <h2 class="section-title mt-3">{{ title }}</h2>
       </div>
-      <NuxtLink to="/" class="hidden text-sm font-semibold text-slate-500 hover:text-ink sm:inline-flex">
+      <NuxtLink to="/catalog" class="hidden text-sm font-semibold text-slate-500 hover:text-ink sm:inline-flex">
         В каталог
       </NuxtLink>
     </div>

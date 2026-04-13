@@ -75,6 +75,12 @@ export const useAuthStore = defineStore("auth", () => {
     return response.user;
   };
 
+  const googleLogin = async (credential: string) => {
+    const response = await api.post<LoginResponse>("/auth/google/", { credential });
+    applyLogin(response);
+    return response.user;
+  };
+
   const register = async (payload: RegisterPayload) => {
     await api.post<User>("/auth/register/", payload);
     return login({ username: payload.username, password: payload.password });
@@ -98,6 +104,7 @@ export const useAuthStore = defineStore("auth", () => {
     bootstrap,
     fetchProfile,
     login,
+    googleLogin,
     register,
     logout
   };

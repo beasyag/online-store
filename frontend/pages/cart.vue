@@ -12,11 +12,14 @@ const cartStore = useCartStore();
 const api = useApiClient();
 const notifications = useNotificationsStore();
 const { getErrorMessage } = useApiError();
-const { formatMoney } = useFormatters();
+const { formatMoney, formatPaymentMethod } = useFormatters();
 
 const orderSuccess = ref<Order | null>(null);
 const orderError = ref("");
 const pageError = ref("");
+const checkoutForm = reactive({
+  payment_method: "card_on_delivery" as "cash_on_delivery" | "card_on_delivery" | "card_online"
+});
 
 await auth.bootstrap();
 if (auth.loggedIn) {
@@ -33,7 +36,14 @@ const checkout = async () => {
   }
   orderError.value = "";
   try {
-    orderSuccess.value = await api.post<Order>("/orders/create/");
+    orderSuccess.value = await api.post<Order>("/orders/create/", checkoutForm);
+    if (checkoutForm.payment_method === "card_online") {
+      const response = await api.post<{ checkout_url: string }>(`/orders/${orderSuccess.value.id}/checkout/`);
+      if (process.client) {
+        window.location.href = response.checkout_url;
+      }
+      return;
+    }
     await cartStore.fetchCart();
     notifications.success("Заказ успешно создан.");
   } catch (error: any) {
@@ -78,6 +88,7 @@ const removeItem = async (itemId: number) => {
         <p class="text-sm font-semibold uppercase tracking-[0.16em] text-pine">Заказ создан</p>
         <h2 class="mt-3 font-display text-2xl font-bold text-ink">Заказ #{{ orderSuccess.id }} принят в обработку</h2>
         <p class="mt-2 text-sm text-slate-500">Итого: {{ formatMoney(orderSuccess.total_amount) }}</p>
+        <p class="mt-1 text-sm text-slate-500">Оплата: {{ formatPaymentMethod(orderSuccess.payment_method) }}</p>
         <NuxtLink to="/account/orders" class="btn-primary mt-5">Перейти к истории заказов</NuxtLink>
       </div>
 
@@ -108,6 +119,30 @@ const removeItem = async (itemId: number) => {
             <div class="flex items-center justify-between">
               <span>Товаров</span>
               <span>{{ cartStore.cart?.total_items || 0 }}</span>
+            </div>
+            <div class="space-y-2 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <p class="text-sm font-semibold text-ink">Способ оплаты</p>
+              <label class="flex items-start gap-3">
+                <input v-model="checkoutForm.payment_method" type="radio" class="mt-1" value="cash_on_delivery" />
+                <span>
+                  <span class="block font-medium text-ink">Наличными при получении</span>
+                  <span class="block text-xs text-slate-500">Покупатель оплачивает заказ при вручении.</span>
+                </span>
+              </label>
+              <label class="flex items-start gap-3">
+                <input v-model="checkoutForm.payment_method" type="radio" class="mt-1" value="card_on_delivery" />
+                <span>
+                  <span class="block font-medium text-ink">Картой при получении</span>
+                  <span class="block text-xs text-slate-500">Оплата банковской картой через терминал курьера или в пункте выдачи.</span>
+                </span>
+              </label>
+              <label class="flex items-start gap-3">
+                <input v-model="checkoutForm.payment_method" type="radio" class="mt-1" value="card_online" />
+                <span>
+                  <span class="block font-medium text-ink">Онлайн картой</span>
+                  <span class="block text-xs text-slate-500">После оформления вы перейдёте на защищённую страницу Stripe Checkout.</span>
+                </span>
+              </label>
             </div>
             <div class="flex items-center justify-between text-lg font-bold text-ink">
               <span>Итого</span>

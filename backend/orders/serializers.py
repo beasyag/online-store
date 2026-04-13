@@ -37,7 +37,19 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ("id", "status", "total_amount", "created_at", "updated_at", "items")
+        fields = ("id", "status", "payment_method", "total_amount", "created_at", "updated_at", "items")
+
+
+class OrderCreateSerializer(serializers.Serializer):
+    payment_method = serializers.ChoiceField(choices=Order.PaymentMethod.choices)
+
+
+class StripeCheckoutSessionSerializer(serializers.Serializer):
+    checkout_url = serializers.URLField(read_only=True)
+
+
+class StripeCheckoutConfirmSerializer(serializers.Serializer):
+    session_id = serializers.CharField()
 
 
 class SellerOrderSerializer(OrderSerializer):
@@ -55,4 +67,3 @@ class SellerOrderSerializer(OrderSerializer):
     def get_seller_total(self, obj):
         seller = self.context["seller"]
         return sum(Decimal(item.price_at_purchase) * item.quantity for item in obj.items.filter(seller=seller))
-

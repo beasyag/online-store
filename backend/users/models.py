@@ -10,6 +10,7 @@ class User(AbstractUser):
 
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.BUYER)
+    google_sub = models.CharField(max_length=255, unique=True, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if self.is_superuser:
@@ -22,4 +23,3 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return self.username
-

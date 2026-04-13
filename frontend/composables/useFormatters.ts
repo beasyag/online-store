@@ -111,6 +111,14 @@ export const useFormatters = () => {
   const formatCategoryName = (value?: string | null) => (value ? categoryNames[value] || value : "");
   const formatTagName = (value?: string | null) => (value ? tagNames[value] || value : "");
   const formatOrderStatus = (value?: string | null) => (value ? orderStatuses[value] || value : "");
+  const formatPaymentMethod = (value?: string | null) => {
+    const paymentMethods: Record<string, string> = {
+      cash_on_delivery: "Наличными при получении",
+      card_on_delivery: "Картой при получении",
+      card_online: "Онлайн картой"
+    };
+    return value ? paymentMethods[value] || value : "";
+  };
   const formatOrderStatusHint = (value?: string | null) => {
     const hints: Record<string, string> = {
       pending: "Заказ создан и ожидает подтверждения.",
@@ -130,6 +138,7 @@ export const useFormatters = () => {
     formatCategoryName,
     formatTagName,
     formatOrderStatus,
-    formatOrderStatusHint
+    formatOrderStatusHint,
+    formatPaymentMethod
   };
 };

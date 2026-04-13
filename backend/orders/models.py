@@ -11,9 +11,21 @@ class Order(models.Model):
         COMPLETED = "completed", "Completed"
         CANCELED = "canceled", "Canceled"
 
+    class PaymentMethod(models.TextChoices):
+        CASH_ON_DELIVERY = "cash_on_delivery", "Cash on delivery"
+        CARD_ON_DELIVERY = "card_on_delivery", "Card on delivery"
+        CARD_ONLINE = "card_online", "Card online"
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="orders")
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    payment_method = models.CharField(
+        max_length=30,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.CARD_ON_DELIVERY,
+    )
+    stripe_checkout_session_id = models.CharField(max_length=255, blank=True, default="")
+    stripe_payment_intent_id = models.CharField(max_length=255, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -45,4 +57,3 @@ class OrderItem(models.Model):
 
     def __str__(self) -> str:
         return f"Order item #{self.pk}"
-
