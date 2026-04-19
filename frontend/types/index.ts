@@ -165,4 +165,29 @@ export interface SellerDashboardResponse {
       name: string;
     };
   }>;
+  chart_data: {
+    labels: string[];
+    revenue: number[];
+    sales_count: number[];
+  };
+}
+
+export interface ChatMessage {
+  id: number;
+  text: string;
+  author: number;
+  author_display: string;
+  created_at: string;
+  is_read: boolean;
+}
+
+export interface ChatRoom {
+  id: number;
+  order: number | null;
+  buyer: number;
+  seller: number;
+  created_at: string;
+  last_message: { text: string; created_at: string } | null;
+  unread_count: number;
+  other_party_name: string;
 }

@@ -128,6 +128,20 @@ const createProfile = async () => {
         </article>
       </section>
 
+      <!-- График продаж -->
+      <section class="panel p-8" v-if="dashboard.chart_data">
+        <div class="mb-6">
+          <h2 class="section-title">Выручка за последние 30 дней</h2>
+          <p class="mt-2 text-sm text-slate-500">Динамика продаж ваших товаров с учетом их количества в заказах.</p>
+        </div>
+        <SalesChart 
+          :labels="dashboard.chart_data.labels" 
+          :data="dashboard.chart_data.revenue" 
+          label-name="Выручка (₸)" 
+          color-hex="#0ea5e9"
+        />
+      </section>
+
       <section class="space-y-5">
         <div>
           <h2 class="section-title">Лучшие товары</h2>

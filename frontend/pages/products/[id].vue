@@ -115,12 +115,21 @@ watchEffect(() => {
 
           <div>
             <h1 class="font-display text-3xl font-bold text-ink sm:text-5xl">{{ product.name }}</h1>
-            <p class="mt-3 text-sm text-slate-500">
-              Сейчас выбрано предложение магазина
-              <NuxtLink :to="`/sellers/${product.seller.id}`" class="font-semibold text-pine">
-                {{ product.seller.shop_name }}
+            <div class="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+              <p>
+                Сейчас выбрано предложение магазина
+                <NuxtLink :to="`/sellers/${product.seller.id}`" class="font-semibold text-pine hover:underline">
+                  {{ product.seller.shop_name }}
+                </NuxtLink>
+              </p>
+              <NuxtLink 
+                v-if="auth.loggedIn && auth.user?.id !== product.seller.id" 
+                :to="`/chat?seller_id=${product.seller.id}`" 
+                class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-200 transition-colors"
+              >
+                💬 Написать продавцу
               </NuxtLink>
-            </p>
+            </div>
           </div>
         </div>
 

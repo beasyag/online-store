@@ -1,5 +1,6 @@
 export default defineNuxtConfig({
   compatibilityDate: "2025-01-01",
+  ssr: false,
   css: ["~/assets/css/main.css"],
   modules: ["@nuxtjs/tailwindcss", "@pinia/nuxt"],
   runtimeConfig: {

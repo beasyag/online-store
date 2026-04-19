@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import DecimalField, ExpressionWrapper, F, Q
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -69,7 +70,18 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
 
         query = request.query_params.get("q")
         if query:
-            queryset = queryset.filter(Q(name__icontains=query) | Q(description__icontains=query))
+            search_vector = (
+                SearchVector("name", weight="A", config="english")
+                + SearchVector("description", weight="B", config="english")
+                + SearchVector("tags__name", weight="B", config="english")
+            )
+            search_query = SearchQuery(query, config="english")
+            queryset = (
+                queryset
+                .annotate(search=search_vector, rank=SearchRank(search_vector, search_query))
+                .filter(rank__gte=0.05)
+                .order_by("-rank")
+            )
 
         category = request.query_params.get("category")
         if category:

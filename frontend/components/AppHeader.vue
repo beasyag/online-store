@@ -16,6 +16,7 @@ const links = computed(() => {
   }
 
   if (auth.loggedIn) {
+    base.push({ label: "Сообщения", to: "/chat" });
     base.push({ label: "Кабинет", to: "/account" });
   }
 

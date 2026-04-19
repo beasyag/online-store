@@ -88,6 +88,10 @@ class CurrentSellerProfileAPIView(APIView):
         return Response(SellerProfileDetailSerializer(seller, context={"request": request}).data)
 
 
+from django.db.models.functions import TruncDate
+from datetime import timedelta
+from django.utils import timezone
+
 class SellerDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSellerUser]
 
@@ -108,6 +112,46 @@ class SellerDashboardAPIView(APIView):
                 Value(Decimal("0.00")),
             )
         )["total"]
+        
+        # Подготовка данных для графика (продажи по дням за последние 30 дней)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        daily_sales = (
+            order_items.filter(order__created_at__gte=thirty_days_ago)
+            .annotate(date=TruncDate("order__created_at"))
+            .values("date")
+            .annotate(
+                total_revenue=Sum(
+                    ExpressionWrapper(
+                        F("quantity") * F("price_at_purchase"),
+                        output_field=DecimalField(max_digits=12, decimal_places=2),
+                    )
+                ),
+                sales_count=Sum("quantity")
+            )
+            .order_by("date")
+        )
+        
+        # Заполняем пропуски нулями, чтобы график был красивым
+        chart_data = {
+            "labels": [],
+            "revenue": [],
+            "sales_count": []
+        }
+        
+        sales_dict = {item["date"]: item for item in daily_sales}
+        current_date = thirty_days_ago.date()
+        end_date = timezone.now().date()
+        
+        while current_date <= end_date:
+            chart_data["labels"].append(current_date.strftime("%d %b"))
+            if current_date in sales_dict:
+                chart_data["revenue"].append(float(sales_dict[current_date]["total_revenue"]))
+                chart_data["sales_count"].append(sales_dict[current_date]["sales_count"])
+            else:
+                chart_data["revenue"].append(0)
+                chart_data["sales_count"].append(0)
+            current_date += timedelta(days=1)
+
         top_products = get_product_queryset(include_inactive=True).filter(seller=seller).order_by(
             "-purchases_count",
             "-views_count",
@@ -119,6 +163,7 @@ class SellerDashboardAPIView(APIView):
             "orders_count": order_items.values("order_id").distinct().count(),
             "sales_count": order_items.aggregate(total=Coalesce(Sum("quantity"), 0))["total"],
             "total_sales": total_sales,
+            "chart_data": chart_data,
             "top_products": ProductCardSerializer(top_products, many=True, context={"request": request}).data,
             "recent_orders": [
                 {

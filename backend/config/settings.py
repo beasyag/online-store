@@ -28,6 +28,7 @@ if not SECRET_KEY:
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "127.0.0.1,localhost,testserver")
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -36,6 +37,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "drf_spectacular",
+    "channels",
     "users",
     "sellers",
     "products",
@@ -44,6 +47,7 @@ INSTALLED_APPS = [
     "reviews",
     "favorites",
     "recommendations",
+    "chat",
 ]
 
 MIDDLEWARE = [
@@ -80,8 +84,12 @@ ASGI_APPLICATION = "config.asgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME", "store"),
+        "USER": os.getenv("DB_USER", "beasyag"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "localhost"),
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
 
@@ -101,6 +109,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 CACHES = {
     "default": {
@@ -123,6 +137,30 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": int(os.getenv("API_PAGE_SIZE", "12")),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "MarketFlow API",
+    "DESCRIPTION": (
+        "REST API для многопользовательского маркетплейса MarketFlow. "
+        "Поддерживает аутентификацию через JWT, управление товарами, "
+        "корзиной, заказами и персонализированными рекомендациями."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "CONTACT": {"name": "MarketFlow Team"},
+    "LICENSE": {"name": "MIT"},
+    "TAGS": [
+        {"name": "Auth", "description": "Регистрация, авторизация и JWT токены"},
+        {"name": "Products", "description": "Каталог товаров, категории и теги"},
+        {"name": "Sellers", "description": "Профили продавцов и их витрины"},
+        {"name": "Cart", "description": "Корзина покупателя"},
+        {"name": "Orders", "description": "Оформление и просмотр заказов"},
+        {"name": "Reviews", "description": "Отзывы на товары"},
+        {"name": "Favorites", "description": "Список избранных товаров"},
+        {"name": "Recommendations", "description": "Персонализированные рекомендации"},
+    ],
 }
 
 SIMPLE_JWT = {
