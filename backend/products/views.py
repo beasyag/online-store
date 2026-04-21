@@ -71,15 +71,17 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
         query = request.query_params.get("q")
         if query:
             search_vector = (
-                SearchVector("name", weight="A", config="english")
-                + SearchVector("description", weight="B", config="english")
-                + SearchVector("tags__name", weight="B", config="english")
+                SearchVector("name", weight="A", config="russian")
+                + SearchVector("description", weight="B", config="russian")
+                + SearchVector("tags__name", weight="B", config="russian")
+                + SearchVector("category__name", weight="C", config="russian")
+                + SearchVector("seller__shop_name", weight="C", config="russian")
             )
-            search_query = SearchQuery(query, config="english")
+            search_query = SearchQuery(query, config="russian", search_type="websearch")
             queryset = (
                 queryset
                 .annotate(search=search_vector, rank=SearchRank(search_vector, search_query))
-                .filter(rank__gte=0.05)
+                .filter(Q(search=search_query) | Q(name__icontains=query))
                 .order_by("-rank")
             )
 

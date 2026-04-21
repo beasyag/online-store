@@ -120,23 +120,5 @@ watch(
         </div>
       </div>
     </div>
-
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <button
-        v-for="(slide, index) in slides"
-        :key="slide.id"
-        type="button"
-        class="panel flex items-center gap-3 p-3 text-left transition hover:-translate-y-0.5"
-        :class="index === activeIndex ? 'ring-2 ring-clay/40' : ''"
-        @click="selectSlide(index)"
-      >
-        <img :src="slide.image_url" :alt="slide.name" class="h-20 w-20 rounded-2xl object-cover" />
-        <div class="min-w-0">
-          <p class="line-clamp-2 text-sm font-semibold text-ink">{{ slide.name }}</p>
-          <p class="mt-2 text-sm font-bold text-clay">-{{ slide.discount_percent }}%</p>
-          <p class="text-xs text-slate-500">{{ formatMoney(slide.price) }}</p>
-        </div>
-      </button>
-    </div>
   </section>
 </template>
