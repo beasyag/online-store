@@ -31,12 +31,18 @@ class CartAddAPIView(APIView):
         product = get_object_or_404(Product.objects.filter(is_active=True), pk=serializer.validated_data["product_id"])
         quantity = serializer.validated_data["quantity"]
 
-        cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product, defaults={"quantity": quantity})
-        if not created:
+        cart_item = CartItem.objects.filter(cart=cart, product=product).first()
+        current_quantity = cart_item.quantity if cart_item else 0
+
+        if current_quantity + quantity > product.stock:
+            return Response({"detail": "Недостаточно товара на складе."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if cart_item:
             cart_item.quantity += quantity
-        if cart_item.quantity > product.stock:
-            return Response({"detail": "Not enough stock available."}, status=status.HTTP_400_BAD_REQUEST)
-        cart_item.save()
+            cart_item.save(update_fields=["quantity"])
+        else:
+            CartItem.objects.create(cart=cart, product=product, quantity=quantity)
+
         cart.refresh_from_db()
         return Response(CartSerializer(cart).data, status=status.HTTP_201_CREATED)
 

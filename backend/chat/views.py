@@ -8,7 +8,7 @@ from .serializers import ChatMessageSerializer, ChatRoomSerializer
 
 
 class MyRoomsListView(generics.ListAPIView):
-    """GET /api/chat/rooms/ — список комнат текущего пользователя."""
+    """GET /api/chat/rooms/ — список комнат текущего пользователя (только с сообщениями)."""
 
     serializer_class = ChatRoomSerializer
     permission_classes = [IsAuthenticated]
@@ -19,28 +19,53 @@ class MyRoomsListView(generics.ListAPIView):
         return (
             ChatRoom.objects.filter(buyer=user)
             | ChatRoom.objects.filter(seller=user)
-        ).prefetch_related("messages").order_by("-created_at")
+        ).filter(
+            messages__isnull=False  # только комнаты с хотя бы одним сообщением
+        ).distinct().prefetch_related("messages").order_by("-created_at")
 
 
 class RoomCreateView(APIView):
-    """POST /api/chat/rooms/ — создать или вернуть существующую комнату."""
+    """
+    GET  /api/chat/rooms/?seller_id=X — найти существующую комнату (без создания).
+    POST /api/chat/rooms/             — создать комнату (только при отправке первого сообщения).
+    """
 
     permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        """Найти существующую комнату с продавцом. Если нет — 404 (комната НЕ создаётся)."""
+        from sellers.models import SellerProfile
+        seller_id = request.query_params.get("seller_id")
+        if not seller_id:
+            return Response({"detail": "seller_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            seller_profile = SellerProfile.objects.select_related("user").get(pk=seller_id)
+        except SellerProfile.DoesNotExist:
+            return Response({"detail": "Seller not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        room = ChatRoom.objects.filter(buyer=request.user, seller=seller_profile.user).first()
+        if not room:
+            return Response({"detail": "Room not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(ChatRoomSerializer(room, context={"request": request}).data)
+
     def post(self, request):
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
+        """Создать или вернуть существующую комнату. Вызывается только при отправке первого сообщения."""
+        from sellers.models import SellerProfile
 
         seller_id = request.data.get("seller_id")
-        order_id = request.data.get("order_id")  # необязательно
+        order_id = request.data.get("order_id")
 
         if not seller_id:
             return Response({"detail": "seller_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            seller_user = User.objects.get(pk=seller_id)
-        except User.DoesNotExist:
+            seller_profile = SellerProfile.objects.select_related("user").get(pk=seller_id)
+            seller_user = seller_profile.user
+        except SellerProfile.DoesNotExist:
             return Response({"detail": "Seller not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if seller_user == request.user:
+            return Response({"detail": "Cannot create chat with yourself."}, status=status.HTTP_400_BAD_REQUEST)
 
         room, _ = ChatRoom.objects.get_or_create(
             buyer=request.user,

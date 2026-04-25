@@ -4,8 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Order
+from .models import Branch, Order
 from .serializers import (
+    BranchSerializer,
     OrderCreateSerializer,
     OrderSerializer,
     SellerOrderSerializer,
@@ -14,13 +15,26 @@ from .serializers import (
 from .services import confirm_order_payment, create_checkout_session_for_order, create_order_from_cart
 
 
+class BranchListAPIView(generics.ListAPIView):
+    queryset = Branch.objects.filter(is_active=True)
+    serializer_class = BranchSerializer
+    permission_classes = []
+    pagination_class = None  # Всегда возвращаем плоский список
+
+
 class OrderCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        order = create_order_from_cart(request.user, payment_method=serializer.validated_data["payment_method"])
+        order = create_order_from_cart(
+            request.user, 
+            payment_method=serializer.validated_data["payment_method"],
+            delivery_method=serializer.validated_data.get("delivery_method", Order.DeliveryMethod.COURIER),
+            delivery_address=serializer.validated_data.get("delivery_address", ""),
+            branch_id=serializer.validated_data.get("branch_id"),
+        )
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 

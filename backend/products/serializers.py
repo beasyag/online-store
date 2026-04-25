@@ -21,7 +21,7 @@ class TagSerializer(serializers.ModelSerializer):
 class SellerMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = SellerProfile
-        fields = ("id", "shop_name", "avatar")
+        fields = ("id", "shop_name", "avatar", "user_id")
 
 
 class ProductSummarySerializer(serializers.ModelSerializer):

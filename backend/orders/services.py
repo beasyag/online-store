@@ -12,14 +12,20 @@ from products.models import Product
 from .models import Order, OrderItem
 
 
-def get_stripe_client():
+def get_stripe_api_key():
     if not settings.STRIPE_SECRET_KEY:
         raise serializers.ValidationError({"detail": "Stripe is not configured."})
-    return stripe.StripeClient(api_key=settings.STRIPE_SECRET_KEY)
+    return settings.STRIPE_SECRET_KEY
 
 
 @transaction.atomic
-def create_order_from_cart(user, payment_method=Order.PaymentMethod.CARD_ON_DELIVERY):
+def create_order_from_cart(
+    user,
+    payment_method=Order.PaymentMethod.CARD_ON_DELIVERY,
+    delivery_method=Order.DeliveryMethod.COURIER,
+    delivery_address="",
+    branch_id=None,
+):
     cart = get_or_create_cart(user)
     cart_items = list(cart.items.select_related("product__seller").all())
     if not cart_items:
@@ -35,6 +41,9 @@ def create_order_from_cart(user, payment_method=Order.PaymentMethod.CARD_ON_DELI
         user=user,
         status=Order.Status.PENDING if payment_method == Order.PaymentMethod.CARD_ONLINE else Order.Status.PROCESSING,
         payment_method=payment_method,
+        delivery_method=delivery_method,
+        delivery_address=delivery_address,
+        branch_id=branch_id,
         total_amount=Decimal("0.00"),
     )
     order_items = []
@@ -80,7 +89,7 @@ def create_checkout_session_for_order(order):
     if order.status in {Order.Status.PAID, Order.Status.COMPLETED}:
         raise serializers.ValidationError({"detail": "Order is already paid."})
 
-    client = get_stripe_client()
+    api_key = get_stripe_api_key()
     frontend_base_url = settings.FRONTEND_BASE_URL
     line_items = []
 
@@ -99,16 +108,15 @@ def create_checkout_session_for_order(order):
             }
         )
 
-    session = client.v1.checkout.sessions.create(
-        params={
-            "success_url": f"{frontend_base_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
-            "cancel_url": f"{frontend_base_url}/payment/cancel?order_id={order.pk}",
-            "mode": "payment",
-            "client_reference_id": str(order.pk),
-            "customer_email": order.user.email,
-            "line_items": line_items,
-            "metadata": {"order_id": str(order.pk), "user_id": str(order.user_id)},
-        }
+    session = stripe.checkout.Session.create(
+        api_key=api_key,
+        success_url=f"{frontend_base_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{frontend_base_url}/payment/cancel?order_id={order.pk}",
+        mode="payment",
+        client_reference_id=str(order.pk),
+        customer_email=order.user.email,
+        line_items=line_items,
+        metadata={"order_id": str(order.pk), "user_id": str(order.user_id)},
     )
 
     order.stripe_checkout_session_id = session.id
@@ -118,13 +126,10 @@ def create_checkout_session_for_order(order):
 
 @transaction.atomic
 def confirm_order_payment(user, session_id):
-    client = get_stripe_client()
-    session = client.v1.checkout.sessions.retrieve(session_id)
+    api_key = get_stripe_api_key()
+    session = stripe.checkout.Session.retrieve(session_id, api_key=api_key)
 
-    session_data = getattr(session, "_data", {}) or {}
-    metadata = session_data.get("metadata") or {}
-    if hasattr(metadata, "_data"):
-        metadata = metadata._data or {}
+    metadata = session.get("metadata", {})
     order_id = metadata.get("order_id")
     if not order_id:
         raise serializers.ValidationError({"detail": "Stripe session is not linked to an order."})
@@ -134,20 +139,23 @@ def confirm_order_payment(user, session_id):
     if order.payment_method != Order.PaymentMethod.CARD_ONLINE:
         raise serializers.ValidationError({"detail": "Order does not require online payment."})
 
-    if session.payment_status != "paid":
+    if session.get("payment_status") != "paid":
         raise serializers.ValidationError({"detail": "Payment is not completed yet."})
 
     updated_fields = []
     if order.status != Order.Status.PAID:
         order.status = Order.Status.PAID
         updated_fields.append("status")
-    payment_intent = getattr(session, "payment_intent", "") or ""
+    
+    payment_intent = session.get("payment_intent", "")
     if payment_intent and order.stripe_payment_intent_id != payment_intent:
         order.stripe_payment_intent_id = payment_intent
         updated_fields.append("stripe_payment_intent_id")
+        
     if order.stripe_checkout_session_id != session.id:
         order.stripe_checkout_session_id = session.id
         updated_fields.append("stripe_checkout_session_id")
+        
     if updated_fields:
         order.save(update_fields=updated_fields)
 

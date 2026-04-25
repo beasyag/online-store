@@ -13,7 +13,7 @@ from faker import Faker
 
 from cart.models import Cart, CartItem
 from favorites.models import Favorite
-from orders.models import Order, OrderItem
+from orders.models import Branch, Order, OrderItem
 from products.models import Category, Product, ProductViewHistory, Tag, refresh_primary_offer_for_group
 from reviews.models import Review
 from sellers.models import SellerProfile
@@ -89,6 +89,7 @@ class Command(BaseCommand):
             self._seed_favorites(products, product_weights, buyers, options["products"])
             self._seed_carts(products, product_weights, buyers)
             self._apply_product_stats(products, original_stock, purchase_counts, view_counts)
+            self._seed_branches()
 
         self.stdout.write(self.style.SUCCESS("Демонстрационные данные маркетплейса успешно сгенерированы."))
         self.stdout.write("Администратор: username=admin password=admin12345")
@@ -107,7 +108,33 @@ class Command(BaseCommand):
         Category.objects.all().delete()
         Tag.objects.all().delete()
         SellerProfile.objects.all().delete()
+        Branch.objects.all().delete()
         User.objects.filter(is_superuser=False).delete()
+
+    def _seed_branches(self):
+        BRANCHES = [
+            {"name": "MarketFlow Алматы Центр",     "city": "Алматы",    "address": "пр. Достык, 111",              "lat": "43.239000", "lng": "76.921000", "hours": "09:00 - 21:00"},
+            {"name": "MarketFlow Алматы Север",     "city": "Алматы",    "address": "мкр. Аlatau, ул. Момышулы, 2а", "lat": "43.340000", "lng": "76.947000", "hours": "10:00 - 20:00"},
+            {"name": "MarketFlow Алматы Сити",      "city": "Алматы",    "address": "ул. Байзакова, 280",           "lat": "43.222000", "lng": "76.843000", "hours": "09:00 - 22:00"},
+            {"name": "MarketFlow Астана Есиль",     "city": "Астана",    "address": "пр. Кабанбай батыра, 17",     "lat": "51.128000", "lng": "71.430000", "hours": "09:00 - 21:00"},
+            {"name": "MarketFlow Астана Центр",     "city": "Астана",    "address": "пр. Республики, 13",          "lat": "51.180000", "lng": "71.446000", "hours": "10:00 - 20:00"},
+            {"name": "MarketFlow Шымкент",          "city": "Шымкент",   "address": "пр. Тауке хана, 27",         "lat": "42.317000", "lng": "69.590000", "hours": "09:00 - 21:00"},
+            {"name": "MarketFlow Қарағанды",        "city": "Қарағанды", "address": "бул. Мира, 56",              "lat": "49.806000", "lng": "73.088000", "hours": "10:00 - 20:00"},
+            {"name": "MarketFlow Атырау",           "city": "Атырау",    "address": "ул. Азаттык, 55",             "lat": "47.107000", "lng": "51.914000", "hours": "09:00 - 21:00"},
+        ]
+        for b in BRANCHES:
+            Branch.objects.get_or_create(
+                name=b["name"],
+                defaults={
+                    "city": b["city"],
+                    "address": b["address"],
+                    "latitude": b["lat"],
+                    "longitude": b["lng"],
+                    "working_hours": b["hours"],
+                    "is_active": True,
+                },
+            )
+        self.stdout.write(f"  ✓ Создано/обновлено {len(BRANCHES)} филиалов.")
 
     def _ensure_admin(self):
         admin, created = User.objects.get_or_create(
@@ -324,6 +351,8 @@ class Command(BaseCommand):
         Favorite.objects.bulk_create(favorite_rows, batch_size=1000)
 
     def _seed_carts(self, products, product_weights, buyers):
+        if not buyers or not products:
+            return
         weighted_products = self._weighted_lists(products, product_weights)
         for buyer in random.sample(buyers, k=max(1, len(buyers) // 4)):
             cart = Cart.objects.create(user=buyer)

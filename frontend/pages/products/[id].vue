@@ -123,7 +123,7 @@ watchEffect(() => {
                 </NuxtLink>
               </p>
               <NuxtLink 
-                v-if="auth.loggedIn && auth.user?.id !== product.seller.id" 
+                v-if="auth.loggedIn && auth.user?.id !== product.seller.user_id" 
                 :to="`/chat?seller_id=${product.seller.id}`" 
                 class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-200 transition-colors"
               >

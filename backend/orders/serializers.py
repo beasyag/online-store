@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import Order, OrderItem
+from .models import Branch, Order, OrderItem
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -32,16 +32,26 @@ class OrderItemSerializer(serializers.ModelSerializer):
         return Decimal(obj.price_at_purchase) * obj.quantity
 
 
+class BranchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Branch
+        fields = ("id", "name", "city", "address", "latitude", "longitude", "working_hours")
+
+
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    branch = BranchSerializer(read_only=True)
 
     class Meta:
         model = Order
-        fields = ("id", "status", "payment_method", "total_amount", "created_at", "updated_at", "items")
+        fields = ("id", "status", "payment_method", "delivery_method", "delivery_address", "branch", "total_amount", "created_at", "updated_at", "items")
 
 
 class OrderCreateSerializer(serializers.Serializer):
     payment_method = serializers.ChoiceField(choices=Order.PaymentMethod.choices)
+    delivery_method = serializers.ChoiceField(choices=Order.DeliveryMethod.choices, default=Order.DeliveryMethod.COURIER)
+    delivery_address = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    branch_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class StripeCheckoutSessionSerializer(serializers.Serializer):

@@ -17,6 +17,10 @@ const messages = ref<ChatMessage[]>([]);
 const messageInput = ref("");
 const loading = ref(true);
 
+// Состояние "ожидающего" чата (комната ещё не создана)
+const pendingSellerId = ref<number | null>(null);
+const pendingSellerName = ref<string>("");
+
 let ws: WebSocket | null = null;
 const messagesContainer = ref<HTMLElement | null>(null);
 
@@ -33,20 +37,22 @@ const loadRooms = async () => {
   if (!auth.loggedIn) return;
   try {
     rooms.value = await api.get<ChatRoom[]>("/chat/rooms/list/");
-    
-    // Если перешли с ?seller_id=X, пытаемся сразу открыть или создать чат
+
     const targetSellerId = Number(route.query.seller_id);
+    const targetSellerName = String(route.query.seller_name || "Продавец");
     if (targetSellerId) {
-      const existing = rooms.value.find(r => r.seller === targetSellerId && r.buyer === auth.user?.id);
-      if (existing) {
-        selectRoom(existing.id);
-      } else {
-        // Создаем новую комнату
-        const newRoom = await api.post<ChatRoom>("/chat/rooms/", { seller_id: targetSellerId });
-        rooms.value.unshift(newRoom);
-        selectRoom(newRoom.id);
+      try {
+        // Пробуем найти существующую комнату (БЕЗ создания)
+        const room = await api.get<ChatRoom>(`/chat/rooms/?seller_id=${targetSellerId}`);
+        if (!rooms.value.find(r => r.id === room.id)) rooms.value.unshift(room);
+        selectRoom(room.id);
+      } catch {
+        // Комнаты нет — показываем "ожидающий" чат без создания в базе
+        pendingSellerId.value = targetSellerId;
+        pendingSellerName.value = targetSellerName;
+        activeRoomId.value = null;
+        messages.value = [];
       }
-      // Убираем seller_id из URL, чтобы не создавать заново при обновлении
       router.replace({ query: {} });
     }
   } catch (error) {
@@ -60,22 +66,16 @@ const config = useRuntimeConfig();
 
 // Подключение к WebSocket
 const connectWebSocket = (roomId: number) => {
-  if (ws) {
-    ws.close();
-  }
-  
-  // Определяем базовый URL для WebSocket
-  const apiBase = config.public.apiBase as string; // например http://localhost:8000/api
-  const wsBase = apiBase.replace("http", "ws").replace("/api", ""); // ws://localhost:8000
-  
+  if (ws) ws.close();
+
+  const apiBase = config.public.apiBase as string;
+  const wsBase = apiBase.replace("http", "ws").replace("/api", "");
   const token = auth.accessToken;
-  const wsUrl = `${wsBase}/ws/chat/${roomId}/?token=${token}`;
-  
-  ws = new WebSocket(wsUrl);
-  
+  ws = new WebSocket(`${wsBase}/ws/chat/${roomId}/?token=${token}`);
+
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    
+
     if (data.type === "history") {
       messages.value = data.messages;
       scrollToBottom();
@@ -89,37 +89,56 @@ const connectWebSocket = (roomId: number) => {
         is_read: false
       });
       scrollToBottom();
-      
-      // Обновляем последнее сообщение в списке комнат
+
       const roomIndex = rooms.value.findIndex(r => r.id === roomId);
       if (roomIndex !== -1) {
         rooms.value[roomIndex].last_message = { text: data.text, created_at: data.created_at };
-        // Поднимаем комнату наверх
         const [moved] = rooms.value.splice(roomIndex, 1);
         rooms.value.unshift(moved);
       }
     }
   };
-  
-  ws.onclose = () => {
-    console.log("WebSocket connection closed");
-  };
+
+  ws.onclose = () => console.log("WebSocket connection closed");
 };
 
 const selectRoom = (roomId: number) => {
+  pendingSellerId.value = null;
+  pendingSellerName.value = "";
   activeRoomId.value = roomId;
-  messages.value = []; // очищаем пока грузится
+  messages.value = [];
   connectWebSocket(roomId);
-  
-  // Обнуляем счетчик непрочитанных для этой комнаты
+
   const room = rooms.value.find(r => r.id === roomId);
   if (room) room.unread_count = 0;
 };
 
-const sendMessage = () => {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+const sendMessage = async () => {
   if (!messageInput.value.trim()) return;
-  
+
+  // Если комнаты ещё нет — создаём её при первом сообщении
+  if (pendingSellerId.value && !activeRoomId.value) {
+    try {
+      const room = await api.post<ChatRoom>("/chat/rooms/", { seller_id: pendingSellerId.value });
+      rooms.value.unshift(room);
+      selectRoom(room.id);
+      // Ждём установки WebSocket соединения
+      await new Promise<void>((resolve) => {
+        const check = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            clearInterval(check);
+            resolve();
+          }
+        }, 100);
+        setTimeout(() => { clearInterval(check); resolve(); }, 3000);
+      });
+    } catch (e) {
+      console.error("Failed to create room", e);
+      return;
+    }
+  }
+
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
   ws.send(JSON.stringify({ text: messageInput.value }));
   messageInput.value = "";
 };
@@ -180,8 +199,39 @@ onUnmounted(() => {
       <!-- Основная область чата -->
       <main class="flex flex-1 flex-col bg-slate-50/50" :class="{ 'hidden sm:flex': !activeRoomId }">
         
-        <div v-if="!activeRoomId" class="flex h-full items-center justify-center p-8 text-center text-slate-500">
+        <div v-if="!activeRoomId && !pendingSellerId" class="flex h-full items-center justify-center p-8 text-center text-slate-500">
           <p>Выберите диалог слева, чтобы начать общение</p>
+        </div>
+
+        <!-- Ожидающий чат: комната ещё не создана -->
+        <div v-else-if="pendingSellerId && !activeRoomId" class="flex flex-1 flex-col">
+          <div class="border-b border-slate-100 bg-white p-4">
+            <p class="font-semibold text-ink">{{ pendingSellerName }}</p>
+            <p class="text-xs text-slate-400">Напишите первое сообщение, чтобы начать диалог</p>
+          </div>
+          <div class="flex flex-1 items-center justify-center text-sm text-slate-400">
+            💬 Диалог появится после отправки первого сообщения
+          </div>
+
+          <!-- Поле ввода для ожидающего чата -->
+          <div class="border-t border-slate-100 bg-white p-4">
+            <form @submit.prevent="sendMessage" class="flex items-end gap-2">
+              <textarea
+                v-model="messageInput"
+                @keydown.enter.prevent="sendMessage"
+                placeholder="Напишите первое сообщение..."
+                class="field min-h-[44px] flex-1 resize-none py-3"
+                rows="1"
+              ></textarea>
+              <button
+                type="submit"
+                class="btn-primary flex h-11 w-11 items-center justify-center rounded-full p-0 flex-shrink-0"
+                :disabled="!messageInput.trim()"
+              >
+                ➤
+              </button>
+            </form>
+          </div>
         </div>
 
         <template v-else>
