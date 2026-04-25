@@ -22,20 +22,31 @@ const mapContainer = ref<HTMLElement | null>(null)
 let map: any = null
 let markers: any[] = []
 
+const ASTANA_CENTER: [number, number] = [51.1694, 71.4491]
+const ASTANA_BOUNDS: [[number, number], [number, number]] = [
+  [50.95, 71.15],
+  [51.28, 71.65],
+]
+
 const initMap = async () => {
   if (!process.client || !mapContainer.value || !props.branches.length) return
 
   const L = (await import('leaflet')).default
+  const bounds = L.latLngBounds(ASTANA_BOUNDS)
 
-  // Дефолтный центр — Алматы
-  const defaultCenter: [number, number] = [43.238, 76.921]
-
-  map = L.map(mapContainer.value, { zoomControl: true }).setView(defaultCenter, 5)
+  map = L.map(mapContainer.value, {
+    zoomControl: true,
+    maxBounds: bounds,
+    maxBoundsViscosity: 1,
+    minZoom: 10,
+  }).setView(ASTANA_CENTER, 11)
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors',
     maxZoom: 18,
   }).addTo(map)
+
+  map.fitBounds(bounds, { padding: [16, 16] })
 
   renderMarkers(L)
 }

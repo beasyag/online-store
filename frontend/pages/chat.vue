@@ -4,12 +4,14 @@ import type { ChatRoom, ChatMessage } from "~/types";
 import { useApiClient } from "~/composables/useApiClient";
 import { useAuthStore } from "~/stores/auth";
 import { useFormatters } from "~/composables/useFormatters";
+import { useHeaderBadges } from "~/composables/useHeaderBadges";
 
 const api = useApiClient();
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const { formatDate } = useFormatters();
+const { setBadge } = useHeaderBadges();
 
 const rooms = ref<ChatRoom[]>([]);
 const activeRoomId = ref<number | null>(null);
@@ -37,6 +39,7 @@ const loadRooms = async () => {
   if (!auth.loggedIn) return;
   try {
     rooms.value = await api.get<ChatRoom[]>("/chat/rooms/list/");
+    setBadge("/chat", rooms.value.reduce((total, room) => total + Number(room.unread_count || 0), 0));
 
     const targetSellerId = Number(route.query.seller_id);
     const targetSellerName = String(route.query.seller_name || "Продавец");
@@ -103,14 +106,27 @@ const connectWebSocket = (roomId: number) => {
 };
 
 const selectRoom = (roomId: number) => {
+  void openRoom(roomId);
+};
+
+const openRoom = async (roomId: number) => {
   pendingSellerId.value = null;
   pendingSellerName.value = "";
   activeRoomId.value = roomId;
   messages.value = [];
-  connectWebSocket(roomId);
 
   const room = rooms.value.find(r => r.id === roomId);
-  if (room) room.unread_count = 0;
+  if (room) {
+    try {
+      messages.value = await api.get<ChatMessage[]>(`/chat/rooms/${roomId}/messages/`);
+    } catch (error) {
+      console.error("Failed to load room history", error);
+    }
+    room.unread_count = 0;
+    setBadge("/chat", rooms.value.reduce((total, item) => total + Number(item.unread_count || 0), 0));
+  }
+
+  connectWebSocket(roomId);
 };
 
 const sendMessage = async () => {
@@ -161,7 +177,7 @@ onUnmounted(() => {
     </div>
 
     <div v-if="!auth.loggedIn" class="panel p-8 text-center text-sm text-slate-500">
-      Пожалуйста, <NuxtLink to="/login" class="text-sky-600 hover:underline">войдите</NuxtLink>, чтобы использовать чат.
+      Пожалуйста, <NuxtLink to="/login" class="text-ink hover:underline">войдите</NuxtLink>, чтобы использовать чат.
     </div>
 
     <div v-else class="panel flex flex-1 overflow-hidden">
@@ -176,7 +192,7 @@ onUnmounted(() => {
             :key="room.id"
             @click="selectRoom(room.id)"
             class="cursor-pointer p-4 transition-colors hover:bg-slate-50"
-            :class="{ 'bg-slate-50 border-l-4 border-l-sky-500': activeRoomId === room.id }"
+            :class="{ 'bg-slate-50 border-l-4 text-ink': activeRoomId === room.id }"
           >
             <div class="flex items-start justify-between">
               <p class="font-medium text-ink">{{ room.other_party_name || "Собеседник" }}</p>
@@ -237,7 +253,7 @@ onUnmounted(() => {
         <template v-else>
           <!-- Мобильная кнопка назад -->
           <div class="border-b border-slate-100 bg-white p-3 sm:hidden">
-            <button @click="activeRoomId = null" class="text-sm font-medium text-sky-600 flex items-center gap-1">
+            <button @click="activeRoomId = null" class="text-sm font-medium text-ink flex items-center gap-1">
               ← Назад к списку
             </button>
           </div>
@@ -255,7 +271,7 @@ onUnmounted(() => {
               <span class="text-[10px] text-slate-400 mb-1 px-1">{{ msg.author_display }}</span>
               <div 
                 class="rounded-2xl px-4 py-2 text-sm shadow-sm"
-                :class="msg.author === auth.user?.id ? 'bg-sky-500 text-white rounded-br-none' : 'bg-white border border-slate-100 text-ink rounded-bl-none'"
+                :class="msg.author === auth.user?.id ? 'text-ink text-white rounded-br-none' : 'bg-white border border-slate-100 text-ink rounded-bl-none'"
               >
                 {{ msg.text }}
               </div>

@@ -125,7 +125,7 @@ watchEffect(() => {
               <NuxtLink 
                 v-if="auth.loggedIn && auth.user?.id !== product.seller.user_id" 
                 :to="`/chat?seller_id=${product.seller.id}`" 
-                class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-200 transition-colors"
+                class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-ink hover:bg-sky-200 transition-colors"
               >
                 💬 Написать продавцу
               </NuxtLink>

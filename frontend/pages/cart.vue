@@ -29,6 +29,8 @@ const orderError = ref("");
 const pageError = ref("");
 const branches = ref<Branch[]>([]);
 
+const ASTANA_CITY_NAMES = ["астана", "нур-султан"];
+
 const checkoutForm = reactive({
   payment_method: "card_on_delivery" as "cash_on_delivery" | "card_on_delivery" | "card_online",
   delivery_method: "courier" as "courier" | "pickup",
@@ -51,8 +53,12 @@ try {
   branches.value = Array.isArray(res) ? res : (res?.results ?? []);
 } catch {}
 
+const astanaBranches = computed(() =>
+  branches.value.filter((branch) => ASTANA_CITY_NAMES.includes((branch.city || "").trim().toLowerCase()))
+);
+
 const selectedBranch = computed(() =>
-  branches.value.find((b) => b.id === checkoutForm.branch_id) || null
+  astanaBranches.value.find((b) => b.id === checkoutForm.branch_id) || null
 );
 
 const onSelectBranch = (branch: Branch) => {
@@ -65,6 +71,9 @@ watch(() => checkoutForm.delivery_method, (val) => {
     checkoutForm.branch_id = null;
   } else {
     checkoutForm.delivery_address = "";
+    if (checkoutForm.branch_id && !astanaBranches.value.some((branch) => branch.id === checkoutForm.branch_id)) {
+      checkoutForm.branch_id = null;
+    }
   }
 });
 
@@ -206,21 +215,22 @@ const removeItem = async (itemId: number) => {
                 <p class="mt-1 text-xs text-slate-500">📍 {{ selectedBranch.address }}</p>
                 <p class="text-xs text-slate-500">🕐 {{ selectedBranch.working_hours }}</p>
               </div>
-              <p v-else class="text-xs text-slate-400">Выберите пункт выдачи на карте</p>
+              <p v-else-if="astanaBranches.length" class="text-xs text-slate-400">Выберите пункт выдачи на карте</p>
+              <p v-else class="text-xs text-slate-400">Самовывоз доступен только в Астане.</p>
 
               <!-- Карта -->
-              <ClientOnly>
+              <ClientOnly v-if="astanaBranches.length">
                 <BranchMap
-                  :branches="branches"
+                  :branches="astanaBranches"
                   :selected-branch-id="checkoutForm.branch_id"
                   @select="onSelectBranch"
                 />
               </ClientOnly>
 
               <!-- Список филиалов -->
-              <div class="max-h-48 overflow-y-auto space-y-2">
+              <div v-if="astanaBranches.length" class="max-h-48 overflow-y-auto space-y-2">
                 <button
-                  v-for="branch in branches"
+                  v-for="branch in astanaBranches"
                   :key="branch.id"
                   type="button"
                   class="w-full rounded-xl border-2 p-3 text-left text-sm transition"
