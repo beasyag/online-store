@@ -32,6 +32,8 @@ services:
       DB_USER: postgres
       DB_PASSWORD: "8747"
       DEBUG: "True"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
       - ./backend:/app
     ports:
@@ -42,6 +44,36 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
+
+  # ─── Redis (Broker & Cache) ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  # ─── Celery Worker ─────────────────────────────────────────────────────────
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: store
+      DB_USER: postgres
+      DB_PASSWORD: "8747"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - backend
+    command: >
+      sh -c "celery -A config worker -l INFO"
 
   # ─── Nuxt 3 Frontend ─────────────────────────────────────────────────────
   frontend:

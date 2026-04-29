@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marketflow-celery
+  labels:
+    app: celery
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: celery
+  template:
+    metadata:
+      labels:
+        app: celery
+    spec:
+      containers:
+      - name: celery
+        image: my-registry/marketflow-backend:latest
+        command: ["celery", "-A", "config", "worker", "-l", "INFO"]
+        env:
+        - name: DB_HOST
+          value: "postgres-service"
+        - name: DB_NAME
+          value: "store"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "8747"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
+        - name: CELERY_BROKER_URL
+          value: "redis://redis-service:6379/0"

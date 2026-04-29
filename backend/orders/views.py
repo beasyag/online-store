@@ -35,6 +35,11 @@ class OrderCreateAPIView(APIView):
             delivery_address=serializer.validated_data.get("delivery_address", ""),
             branch_id=serializer.validated_data.get("branch_id"),
         )
+        
+        # Запускаем фоновую задачу отправки уведомления в Celery
+        from .tasks import process_order_notifications
+        process_order_notifications.delay(order.id, request.user.email)
+        
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
