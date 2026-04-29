@@ -60,7 +60,7 @@ const toggleFavorite = async () => {
 </script>
 
 <template>
-  <article class="group overflow-hidden rounded-[1.7rem] border border-white/80 bg-white/95 shadow-soft transition hover:-translate-y-0.5">
+  <article class="group overflow-hidden rounded-[1.4rem] border border-white/80 bg-white/95 shadow-soft transition hover:-translate-y-0.5 sm:rounded-[1.7rem]">
     <NuxtLink :to="`/products/${product.id}`" class="relative block aspect-[4/3] overflow-hidden bg-white">
       <img
           :src="product.image_url"
@@ -68,21 +68,21 @@ const toggleFavorite = async () => {
           class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
       />
       <div class="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950/45 via-transparent to-transparent" />
-      <div class="absolute left-4 top-4 flex flex-wrap gap-2">
+      <div class="absolute left-3 top-3 flex flex-wrap gap-2 sm:left-4 sm:top-4">
         <span v-for="badge in productBadges" :key="badge.label" :class="badge.className">
           {{ badge.label }}
         </span>
         <span v-if="!productBadges.length" class="badge !bg-white/90 !text-ink">{{ formatCategoryName(product.category.name) }}</span>
       </div>
-      <div class="absolute bottom-5 left-4 right-5">
-        <p class="text-sm font-semibold text-white/75">{{ product.seller.shop_name }}</p>
-        <p class="mt-1 line-clamp-2 text-lg font-bold text-white">{{ product.name }}</p>
+      <div class="absolute bottom-4 left-3 right-4 sm:bottom-5 sm:left-4 sm:right-5">
+        <p class="text-xs font-semibold text-white/75 sm:text-sm">{{ product.seller.shop_name }}</p>
+        <p class="mt-1 line-clamp-2 text-base font-bold text-white sm:text-lg">{{ product.name }}</p>
       </div>
     </NuxtLink>
 
-    <div class="space-y-4 p-5">
+    <div class="space-y-4 p-4 sm:p-5">
       <div class="flex items-start justify-between gap-3">
-        <p v-if="product.description" class="line-clamp-3 text-sm leading-6 text-slate-500">{{ product.description }}</p>
+        <p v-if="product.description" class="line-clamp-3 text-sm leading-5 text-slate-500 sm:leading-6">{{ product.description }}</p>
         <button
             type="button"
             class="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold transition hover:border-clay hover:text-clay"
@@ -95,10 +95,10 @@ const toggleFavorite = async () => {
 
       <div class="flex items-end justify-between gap-3">
         <div>
-          <p class="text-lg font-extrabold text-ink">{{ formatMoney(product.price) }}</p>
+          <p class="text-base font-extrabold text-ink sm:text-lg">{{ formatMoney(product.price) }}</p>
           <p v-if="product.old_price" class="text-sm text-slate-400 line-through">{{ formatMoney(product.old_price) }}</p>
         </div>
-        <div class="text-right text-sm text-slate-500">
+        <div class="text-right text-xs text-slate-500 sm:text-sm">
           <p>Рейтинг {{ formatRating(product.average_rating) }}</p>
           <p>{{ product.reviews_count }} отзывов</p>
         </div>

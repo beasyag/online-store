@@ -41,6 +41,8 @@ const renderGoogleButton = () => {
     return;
   }
 
+  const buttonWidth = Math.min(320, Math.max(220, googleButtonRef.value.clientWidth || 320));
+
   googleButtonRef.value.innerHTML = "";
   window.google.accounts.id.initialize({
     client_id: googleClientId,
@@ -51,7 +53,7 @@ const renderGoogleButton = () => {
     size: "large",
     shape: "pill",
     text: "signin_with",
-    width: 320
+    width: buttonWidth
   });
   googleReady.value = true;
 };
@@ -100,7 +102,7 @@ const submit = async () => {
       <p class="mt-2 text-sm text-slate-500">Используйте тестовый аккаунт покупателя, продавца или администратора.</p>
 
       <div v-if="googleClientId" class="mt-8 flex flex-col items-center gap-3">
-        <div ref="googleButtonRef" class="min-h-[44px]" />
+        <div ref="googleButtonRef" class="min-h-[44px] w-full max-w-[320px]" />
         <p v-if="!googleReady" class="text-xs text-slate-500">Загружаем Google Sign-In...</p>
       </div>
 

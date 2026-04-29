@@ -80,6 +80,7 @@ class RoomHistoryView(generics.ListAPIView):
 
     serializer_class = ChatMessageSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_queryset(self):
         room_id = self.kwargs["room_id"]

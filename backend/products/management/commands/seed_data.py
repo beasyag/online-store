@@ -2,7 +2,6 @@ import random
 from collections import Counter
 from datetime import timedelta
 from decimal import Decimal
-from urllib.parse import quote
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
@@ -175,7 +174,7 @@ class Command(BaseCommand):
                     user=user,
                     shop_name=f"{self.fake.company()} Маркет {absolute_index}",
                     description=self.fake.text(max_nb_chars=180),
-                    avatar=f"https://loremflickr.com/320/320/store?lock={absolute_index}",
+                    avatar=f"https://picsum.photos/seed/seller{absolute_index}/320/320",
                 )
             )
         return sellers
@@ -429,5 +428,6 @@ class Command(BaseCommand):
         return random.choice(variants[rating])
 
     def _image_url(self, query_value, key):
-        encoded = quote(query_value, safe=",")
-        return f"https://loremflickr.com/900/900/{encoded}?lock={abs(hash(key)) % 10000}"
+        # picsum.photos — стабильный сервис случайных фото, не требует тегов
+        seed = abs(hash(key)) % 1000
+        return f"https://picsum.photos/seed/{seed}/900/900"

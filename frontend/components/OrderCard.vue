@@ -23,9 +23,9 @@ const statusClass = computed(() => {
 </script>
 
 <template>
-  <article class="panel p-5">
+  <article class="panel p-4 sm:p-5">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
+      <div class="min-w-0">
         <p class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Заказ #{{ order.id }}</p>
         <p class="mt-2 text-sm text-slate-500">{{ formatDate(order.created_at) }}</p>
       </div>
@@ -47,8 +47,8 @@ const statusClass = computed(() => {
         :key="item.id"
         class="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
       >
-        <div>
-          <p class="font-semibold text-ink">{{ item.product.name }}</p>
+        <div class="min-w-0">
+          <p class="break-words font-semibold text-ink">{{ item.product.name }}</p>
           <p class="text-sm text-slate-500">{{ item.seller.shop_name }}</p>
         </div>
         <div class="text-sm text-slate-500">

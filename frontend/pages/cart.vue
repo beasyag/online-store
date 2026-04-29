@@ -166,12 +166,12 @@ const removeItem = async (itemId: number) => {
         </div>
 
         <!-- Форма оформления -->
-        <aside class="space-y-4 h-fit">
+        <aside class="order-first space-y-4 h-fit lg:order-none">
 
           <!-- Способ доставки -->
           <div class="panel p-5 space-y-4">
             <p class="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Доставка</p>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 class="flex flex-col items-center gap-2 rounded-xl border-2 p-4 text-sm font-medium transition"

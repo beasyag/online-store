@@ -89,9 +89,9 @@ const createProfile = async () => {
         <span class="badge !bg-pine">Продавец</span>
         <h1 class="section-title mt-3">Кабинет продавца</h1>
       </div>
-      <div class="flex flex-wrap gap-3">
-        <NuxtLink to="/seller/products" class="btn-secondary">Мои товары</NuxtLink>
-        <NuxtLink to="/seller/orders" class="btn-primary">Заказы продавца</NuxtLink>
+      <div class="grid gap-3 sm:flex sm:flex-wrap">
+        <NuxtLink to="/seller/products" class="btn-secondary w-full sm:w-auto">Мои товары</NuxtLink>
+        <NuxtLink to="/seller/orders" class="btn-primary w-full sm:w-auto">Заказы продавца</NuxtLink>
       </div>
     </section>
 
@@ -104,17 +104,17 @@ const createProfile = async () => {
     </div>
 
     <template v-else-if="sellerProfile && dashboard">
-      <section class="panel p-8">
+      <section class="panel p-4 sm:p-8">
         <div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div class="flex items-center gap-4">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
             <img :src="sellerProfile.avatar" :alt="sellerProfile.shop_name" class="h-20 w-20 rounded-3xl object-cover" />
-            <div>
+            <div class="min-w-0">
               <p class="text-sm uppercase tracking-[0.16em] text-slate-500">Магазин</p>
-              <h2 class="font-display text-3xl font-bold text-ink">{{ sellerProfile.shop_name }}</h2>
+              <h2 class="break-words font-display text-2xl font-bold text-ink sm:text-3xl">{{ sellerProfile.shop_name }}</h2>
               <p class="mt-2 max-w-2xl text-sm text-slate-500">{{ sellerProfile.description }}</p>
             </div>
           </div>
-          <NuxtLink to="/seller/products/new" class="btn-primary">Добавить товар</NuxtLink>
+          <NuxtLink to="/seller/products/new" class="btn-primary w-full md:w-auto">Добавить товар</NuxtLink>
         </div>
       </section>
 
@@ -129,7 +129,7 @@ const createProfile = async () => {
       </section>
 
       <!-- График продаж -->
-      <section class="panel p-8" v-if="dashboard.chart_data">
+      <section class="panel p-4 sm:p-8" v-if="dashboard.chart_data">
         <div class="mb-6">
           <h2 class="section-title">Выручка за последние 30 дней</h2>
           <p class="mt-2 text-sm text-slate-500">Динамика продаж ваших товаров с учетом их количества в заказах.</p>
@@ -172,7 +172,7 @@ const createProfile = async () => {
       </section>
     </template>
 
-    <section v-else class="panel max-w-3xl p-8">
+    <section v-else class="panel max-w-3xl p-4 sm:p-8">
       <span class="badge !bg-clay">Стать продавцом</span>
       <h2 class="section-title mt-4">Создать профиль продавца</h2>
       <p class="mt-2 text-sm text-slate-500">
@@ -193,7 +193,7 @@ const createProfile = async () => {
           <input v-model="form.avatar" class="field" type="url" />
         </div>
         <p v-if="errorMessage" class="text-sm text-rose-500">{{ errorMessage }}</p>
-        <button class="btn-primary" type="submit">Создать профиль продавца</button>
+        <button class="btn-primary w-full sm:w-auto" type="submit">Создать профиль продавца</button>
       </form>
     </section>
   </div>

@@ -18,7 +18,7 @@ const orders = computed(() => usePaginatedResults<Order>(ordersData.value));
 
 <template>
   <div class="shell space-y-8">
-    <div>
+    <div class="space-y-2">
       <span class="badge !bg-pine">Заказы продавца</span>
       <h1 class="section-title mt-3">Заказы с вашими товарами</h1>
     </div>

@@ -11,7 +11,9 @@ const cartStore = useCartStore();
 const favoritesStore = useFavoritesStore();
 const api = useApiClient();
 const { setBadge, getBadge } = useHeaderBadges();
+const route = useRoute();
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
+const mobileMenuOpen = ref(false);
 
 const links = computed(() => {
   const base = [
@@ -93,6 +95,14 @@ const handleVisibilityChange = () => {
   refreshHeaderBadges();
 };
 
+const toggleMobileMenu = () => {
+  mobileMenuOpen.value = !mobileMenuOpen.value;
+};
+
+const closeMobileMenu = () => {
+  mobileMenuOpen.value = false;
+};
+
 watch(
   () => cartStore.count,
   () => {
@@ -109,6 +119,13 @@ watch(
   { immediate: true }
 );
 
+watch(
+  () => route.fullPath,
+  () => {
+    closeMobileMenu();
+  }
+);
+
 onMounted(() => {
   startBadgePolling();
   document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -122,14 +139,14 @@ onUnmounted(() => {
 
 <template>
   <header class="sticky top-0 z-30 border-b border-white/50 bg-sand/70 backdrop-blur-xl">
-    <div class="shell flex items-center justify-between gap-4 py-4">
-      <NuxtLink to="/" class="flex items-center gap-3">
-        <div class="flex h-12 w-12 items-center justify-center rounded-[1.25rem] bg-gradient-to-br from-ink via-slate-900 to-clay text-lg font-bold text-white shadow-soft">
+    <div class="shell flex items-center justify-between gap-3 py-3 sm:gap-4 sm:py-4">
+      <NuxtLink to="/" class="min-w-0 flex items-center gap-3">
+        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.25rem] bg-gradient-to-br from-ink via-slate-900 to-clay text-base font-bold text-white shadow-soft sm:h-12 sm:w-12 sm:text-lg">
           MK
         </div>
-        <div>
-          <p class="font-display text-lg font-bold">MarketFlow</p>
-          <p class="muted">Маркетплейс с разными продавцами</p>
+        <div class="min-w-0">
+          <p class="truncate font-display text-base font-bold sm:text-lg">MarketFlow</p>
+          <p class="hidden truncate text-xs text-slate-500 sm:block">Маркетплейс с разными продавцами</p>
         </div>
       </NuxtLink>
 
@@ -150,8 +167,8 @@ onUnmounted(() => {
         </NuxtLink>
       </nav>
 
-      <div class="flex items-center gap-3">
-        <NuxtLink to="/cart" class="relative rounded-2xl border border-slate-200 bg-white/90 px-4 py-2 text-sm font-semibold shadow-soft md:hidden">
+      <div class="flex items-center gap-2 sm:gap-3">
+        <NuxtLink to="/cart" class="relative rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 text-sm font-semibold shadow-soft md:hidden">
           Корзина
           <span
             v-if="cartStore.count"
@@ -165,14 +182,63 @@ onUnmounted(() => {
           <NuxtLink to="/account" class="hidden rounded-2xl border border-slate-200 bg-white/90 px-4 py-2 text-sm font-semibold shadow-soft sm:inline-flex">
             {{ auth.fullName || "Профиль" }}
           </NuxtLink>
-          <button class="btn-primary !px-4 !py-2" type="button" @click="auth.logout()">
+          <button class="hidden btn-primary !px-4 !py-2 sm:inline-flex" type="button" @click="auth.logout()">
             Выйти
           </button>
         </template>
         <template v-else>
-          <NuxtLink to="/login" class="btn-secondary !px-4 !py-2">Войти</NuxtLink>
-          <NuxtLink to="/register" class="btn-primary !px-4 !py-2">Регистрация</NuxtLink>
+          <NuxtLink to="/login" class="hidden btn-secondary !px-4 !py-2 sm:inline-flex">Войти</NuxtLink>
+          <NuxtLink to="/register" class="hidden btn-primary !px-4 !py-2 sm:inline-flex">Регистрация</NuxtLink>
         </template>
+
+        <button
+          type="button"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-ink shadow-soft transition hover:border-clay md:hidden"
+          :aria-expanded="mobileMenuOpen"
+          aria-label="Открыть меню"
+          @click="toggleMobileMenu"
+        >
+          <span v-if="!mobileMenuOpen" class="text-lg">☰</span>
+          <span v-else class="text-lg">✕</span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="mobileMenuOpen" class="border-t border-white/60 md:hidden">
+      <div class="shell py-4">
+        <div class="panel space-y-4 p-4">
+          <nav class="grid gap-2">
+            <NuxtLink
+              v-for="link in links"
+              :key="link.to"
+              :to="link.to"
+              class="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 py-3 text-sm font-semibold text-ink"
+            >
+              <span>{{ link.label }}</span>
+              <span
+                v-if="getBadge(link.to)"
+                class="flex h-6 min-w-6 items-center justify-center rounded-full bg-clay px-1 text-xs font-semibold text-white"
+              >
+                {{ getBadge(link.to) }}
+              </span>
+            </NuxtLink>
+          </nav>
+
+          <div class="grid gap-2 border-t border-slate-100 pt-4">
+            <template v-if="auth.loggedIn">
+              <NuxtLink to="/account" class="btn-secondary w-full !justify-start">
+                {{ auth.fullName || "Профиль" }}
+              </NuxtLink>
+              <button class="btn-primary w-full" type="button" @click="auth.logout()">
+                Выйти
+              </button>
+            </template>
+            <template v-else>
+              <NuxtLink to="/login" class="btn-secondary w-full">Войти</NuxtLink>
+              <NuxtLink to="/register" class="btn-primary w-full">Регистрация</NuxtLink>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
   </header>

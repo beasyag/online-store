@@ -127,9 +127,15 @@ onUnmounted(() => {
 <style scoped>
 .branch-map {
   width: 100%;
-  height: 360px;
+  height: 280px;
   border-radius: 16px;
   overflow: hidden;
   z-index: 0;
+}
+
+@media (min-width: 640px) {
+  .branch-map {
+    height: 360px;
+  }
 }
 </style>

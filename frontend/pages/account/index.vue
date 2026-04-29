@@ -29,9 +29,9 @@ const orders = computed(() => usePaginatedResults<Order>(ordersData.value));
         <span class="badge">Кабинет</span>
         <h1 class="section-title mt-3">Кабинет покупателя</h1>
       </div>
-      <div class="flex flex-wrap gap-3">
-        <NuxtLink to="/account/orders" class="btn-secondary">Заказы</NuxtLink>
-        <NuxtLink to="/account/favorites" class="btn-primary">Избранное</NuxtLink>
+      <div class="grid gap-3 sm:flex sm:flex-wrap">
+        <NuxtLink to="/account/orders" class="btn-secondary w-full sm:w-auto">Заказы</NuxtLink>
+        <NuxtLink to="/account/favorites" class="btn-primary w-full sm:w-auto">Избранное</NuxtLink>
       </div>
     </section>
 
@@ -41,16 +41,16 @@ const orders = computed(() => usePaginatedResults<Order>(ordersData.value));
 
     <template v-else>
       <section class="grid gap-4 sm:grid-cols-3">
-        <div class="panel p-5">
+        <div class="panel p-4 sm:p-5">
           <p class="text-sm text-slate-500">Профиль</p>
-          <p class="mt-2 font-display text-2xl font-bold text-ink">{{ auth.fullName || auth.user?.username }}</p>
+          <p class="mt-2 break-words font-display text-xl font-bold text-ink sm:text-2xl">{{ auth.fullName || auth.user?.username }}</p>
           <p class="mt-1 text-sm text-slate-500">{{ auth.user?.email }}</p>
         </div>
-        <div class="panel p-5">
+        <div class="panel p-4 sm:p-5">
           <p class="text-sm text-slate-500">Заказы</p>
           <p class="mt-2 font-display text-2xl font-bold text-ink">{{ orders.length }}</p>
         </div>
-        <div class="panel p-5">
+        <div class="panel p-4 sm:p-5">
           <p class="text-sm text-slate-500">Избранное</p>
           <p class="mt-2 font-display text-2xl font-bold text-ink">{{ favoritesStore.items.length }}</p>
         </div>

@@ -96,12 +96,12 @@ watchEffect(() => {
 
 <template>
   <div v-if="product" class="shell space-y-10">
-    <section class="grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
-      <div class="overflow-hidden rounded-[2rem] bg-white shadow-soft">
-        <img :src="product.image_url" :alt="product.name" class="h-full min-h-[320px] w-full object-cover lg:min-h-[420px]" />
+    <section class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr] xl:gap-8">
+      <div class="overflow-hidden rounded-[1.6rem] bg-white shadow-soft sm:rounded-[2rem]">
+        <img :src="product.image_url" :alt="product.name" class="h-full min-h-[240px] w-full object-cover sm:min-h-[320px] lg:min-h-[420px]" />
       </div>
 
-      <div class="space-y-6">
+      <div class="space-y-5 sm:space-y-6">
         <div class="space-y-4">
           <div class="flex flex-wrap items-center gap-3">
             <span class="badge !bg-pine">{{ formatCategoryName(product.category.name) }}</span>
@@ -114,8 +114,8 @@ watchEffect(() => {
           </div>
 
           <div>
-            <h1 class="font-display text-3xl font-bold text-ink sm:text-5xl">{{ product.name }}</h1>
-            <div class="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+            <h1 class="font-display text-2xl font-bold text-ink sm:text-5xl">{{ product.name }}</h1>
+            <div class="mt-3 flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
               <p>
                 Сейчас выбрано предложение магазина
                 <NuxtLink :to="`/sellers/${product.seller.id}`" class="font-semibold text-pine hover:underline">
@@ -125,7 +125,7 @@ watchEffect(() => {
               <NuxtLink 
                 v-if="auth.loggedIn && auth.user?.id !== product.seller.user_id" 
                 :to="`/chat?seller_id=${product.seller.id}`" 
-                class="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-ink hover:bg-sky-200 transition-colors"
+                class="inline-flex w-fit rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-ink transition-colors hover:bg-sky-200"
               >
                 💬 Написать продавцу
               </NuxtLink>
@@ -133,11 +133,11 @@ watchEffect(() => {
           </div>
         </div>
 
-        <div class="rounded-[1.8rem] bg-white p-6 shadow-soft">
-          <div class="flex flex-wrap items-end justify-between gap-5">
+        <div class="rounded-[1.4rem] bg-white p-4 shadow-soft sm:rounded-[1.8rem] sm:p-6">
+          <div class="flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <div>
-              <p class="text-3xl font-extrabold text-ink sm:text-4xl">{{ formatMoney(product.price) }}</p>
-              <p v-if="product.old_price" class="mt-2 text-base text-slate-400 line-through">{{ formatMoney(product.old_price) }}</p>
+              <p class="text-2xl font-extrabold text-ink sm:text-4xl">{{ formatMoney(product.price) }}</p>
+              <p v-if="product.old_price" class="mt-2 text-sm text-slate-400 line-through sm:text-base">{{ formatMoney(product.old_price) }}</p>
             </div>
             <div class="grid gap-3 text-sm text-slate-500 sm:grid-cols-3">
               <div class="rounded-2xl bg-slate-50 px-4 py-3">
@@ -165,9 +165,9 @@ watchEffect(() => {
           </div>
         </div>
 
-        <div class="panel p-6">
+        <div class="panel p-4 sm:p-6">
           <h2 class="section-title">Описание</h2>
-          <p class="mt-4 text-base leading-8 text-slate-600">{{ product.description }}</p>
+          <p class="mt-4 text-sm leading-7 text-slate-600 sm:text-base sm:leading-8">{{ product.description }}</p>
 
           <div class="mt-5 flex flex-wrap gap-2">
             <span
@@ -184,8 +184,8 @@ watchEffect(() => {
 
     <SellerOffersPanel :offers="offers" :current-product-id="product.id" />
 
-    <section class="grid gap-8 lg:grid-cols-[0.92fr_1.08fr]">
-      <div class="panel p-6">
+    <section class="grid gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:gap-8">
+      <div class="panel p-4 sm:p-6">
         <h2 class="section-title">Оставить отзыв</h2>
         <div class="mt-5 space-y-4">
           <div class="space-y-2">
