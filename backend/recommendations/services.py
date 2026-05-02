@@ -24,7 +24,7 @@ def _tag_ids(product) -> set[int]:
     return product._cached_tag_ids
 
 
-def base_similarity_score(candidate: Product, reference: Product) -> int:
+def     base_similarity_score(candidate: Product, reference: Product) -> int:
     if candidate.id == reference.id:
         return 0
     if candidate.offer_group and reference.offer_group and candidate.offer_group == reference.offer_group:

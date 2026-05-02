@@ -53,9 +53,58 @@ try {
   branches.value = Array.isArray(res) ? res : (res?.results ?? []);
 } catch {}
 
-const astanaBranches = computed(() =>
-  branches.value.filter((branch) => ASTANA_CITY_NAMES.includes((branch.city || "").trim().toLowerCase()))
-);
+// Пользовательская локация
+const userLocation = ref<{ lat: number; lng: number } | null>(null);
+
+// Формула Гаверсинуса для вычисления расстояния (в километрах)
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Радиус Земли в км
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+  return R * c;
+};
+
+// Запрос геолокации
+const geoError = ref("");
+const requestLocation = () => {
+  if (process.client && "geolocation" in navigator) {
+    geoError.value = "";
+    navigator.geolocation.getCurrentPosition((position) => {
+      userLocation.value = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+    }, (error) => {
+      console.warn("Ошибка геолокации:", error);
+      if (error.code === 1) geoError.value = "Доступ к геопозиции запрещен браузером.";
+      else geoError.value = "Не удалось получить координаты.";
+    });
+  } else {
+    geoError.value = "Геолокация не поддерживается вашим браузером.";
+  }
+};
+
+onMounted(() => {
+  requestLocation();
+});
+
+const astanaBranches = computed(() => {
+  let filtered = branches.value.filter((branch) => ASTANA_CITY_NAMES.includes((branch.city || "").trim().toLowerCase()));
+
+  if (userLocation.value) {
+    // Если есть GPS, добавляем дистанцию и сортируем от ближнего к дальнему
+    return filtered.map(b => ({
+      ...b,
+      distance: calculateDistance(userLocation.value!.lat, userLocation.value!.lng, parseFloat(b.latitude), parseFloat(b.longitude))
+    })).sort((a, b) => a.distance - b.distance);
+  }
+  return filtered;
+});
 
 const selectedBranch = computed(() =>
   astanaBranches.value.find((b) => b.id === checkoutForm.branch_id) || null
@@ -210,13 +259,31 @@ const removeItem = async (itemId: number) => {
             <!-- Самовывоз: карта -->
             <div v-if="checkoutForm.delivery_method === 'pickup'" class="space-y-3">
               <!-- Выбранный филиал -->
-              <div v-if="selectedBranch" class="rounded-xl bg-clay/5 border border-clay/20 p-3">
-                <p class="text-sm font-semibold text-clay">✓ {{ selectedBranch.name }}</p>
-                <p class="mt-1 text-xs text-slate-500">📍 {{ selectedBranch.address }}</p>
-                <p class="text-xs text-slate-500">🕐 {{ selectedBranch.working_hours }}</p>
+              <div v-if="selectedBranch" class="rounded-xl bg-clay/5 border border-clay/20 p-3 flex justify-between items-center">
+                <div>
+                  <p class="text-sm font-semibold text-clay">✓ {{ selectedBranch.name }}</p>
+                  <p class="mt-1 text-xs text-slate-500">📍 {{ selectedBranch.address }}</p>
+                  <p class="text-xs text-slate-500">🕐 {{ selectedBranch.working_hours }}</p>
+                </div>
+                <div v-if="selectedBranch.distance" class="text-right">
+                  <p class="text-xs font-semibold text-pine">{{ selectedBranch.distance < 1 ? Math.round(selectedBranch.distance * 1000) + ' м' : selectedBranch.distance.toFixed(1) + ' км' }}</p>
+                  <p class="text-[10px] text-slate-400">от вас</p>
+                </div>
               </div>
               <p v-else-if="astanaBranches.length" class="text-xs text-slate-400">Выберите пункт выдачи на карте</p>
               <p v-else class="text-xs text-slate-400">Самовывоз доступен только в Астане.</p>
+
+              <!-- Кнопка "Найти меня" -->
+              <div v-if="astanaBranches.length && !userLocation" class="flex items-center gap-2">
+                <button 
+                  type="button" 
+                  @click="requestLocation"
+                  class="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                >
+                  <span class="text-sm">📍</span> Показать расстояние до ПВЗ
+                </button>
+                <p v-if="geoError" class="text-[10px] text-rose-500">{{ geoError }}</p>
+              </div>
 
               <!-- Карта -->
               <ClientOnly v-if="astanaBranches.length">
@@ -239,7 +306,12 @@ const removeItem = async (itemId: number) => {
                     : 'border-slate-100 hover:border-slate-300'"
                   @click="onSelectBranch(branch)"
                 >
-                  <p class="font-semibold text-ink">{{ branch.name }}</p>
+                  <p class="font-semibold text-ink">
+                    {{ branch.name }}
+                    <span v-if="branch.distance" class="ml-2 text-xs font-normal text-pine">
+                      {{ branch.distance < 1 ? Math.round(branch.distance * 1000) + ' м от вас' : branch.distance.toFixed(1) + ' км от вас' }}
+                    </span>
+                  </p>
                   <p class="mt-0.5 text-xs text-slate-500">{{ branch.address }} · {{ branch.working_hours }}</p>
                 </button>
               </div>
