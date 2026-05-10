@@ -24,9 +24,6 @@ python manage.py runserver
 
 ### Docker database credentials
 
-`docker-compose.yml` reads PostgreSQL credentials from `backend/.env`. Django accepts either the `DB_*` variables or the matching `POSTGRES_*` variables from that file, so keep both sets aligned when changing local credentials.
-
-
 
 ```bash
 docker compose down -v
