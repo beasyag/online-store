@@ -35,9 +35,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: >
-      python manage.py migrate &&
-      python manage.py runserver 0.0.0.0:8000
+
 
   # ─── Redis (Broker & Cache) ────────────────────────────────────────────────
   redis:
@@ -65,8 +63,6 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: >
-      celery -A config worker -l INFO
 
   # ─── Nuxt 3 Frontend ─────────────────────────────────────────────────────
   frontend:
