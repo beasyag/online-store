@@ -10,13 +10,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          pg_user="$${POSTGRES_USER:-$${DB_USER:-postgres}}";
-          pg_db="$${POSTGRES_DB:-$${DB_NAME:-store}}";
-          pg_pass="$${POSTGRES_PASSWORD:-$${DB_PASSWORD:-}}";
-          PGPASSWORD="$$pg_pass" psql -U "$$pg_user" -d "$$pg_db" -c "SELECT 1" >/dev/null
+
       interval: 5s
       timeout: 5s
       retries: 10
@@ -41,7 +35,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
 
   # ─── Redis (Broker & Cache) ────────────────────────────────────────────────
   redis:
@@ -69,7 +62,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: ["celery", "-A", "config", "worker", "-l", "INFO"]
+
 
   # ─── Nuxt 3 Frontend ─────────────────────────────────────────────────────
   frontend:
