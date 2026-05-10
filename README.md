@@ -5,8 +5,36 @@ MarketFlow is a full-stack MVP multi-vendor marketplace built with Nuxt 3 and Dj
 ## Stack
 
 - Frontend: Nuxt 3, Vue 3, Pinia, TailwindCSS
-- Backend: Python 3, Django, DRF, SimpleJWT, SQLite
+- Backend: Python 3, Django, DRF, SimpleJWT, PostgreSQL
 - Seed data: Faker + custom marketplace-oriented generation
+
+
+## Local Backend Setup
+
+The backend uses PostgreSQL by default for local application runs. Before running `python manage.py runserver`, create a local environment file from the example and make sure PostgreSQL is running:
+
+```bash
+cp backend/.env.example backend/.env
+docker compose up -d db redis
+cd backend
+python manage.py migrate
+python manage.py runserver
+```
+
+If you start Django without `backend/.env`, the default settings may try to connect to PostgreSQL with an empty `DB_PASSWORD`, which causes an error like `psycopg.OperationalError: connection failed: fe_sendauth: no password supplied`. The sample `.env` includes the `DB_*` values used by Django and the `POSTGRES_*` values used by `docker-compose.yml`; keep `DB_PASSWORD` and `POSTGRES_PASSWORD` identical for local Docker runs. If you already created the Docker PostgreSQL volume with a different password, either set both password variables back to that old value or recreate the volume.
+
+## Tests
+
+Backend tests use `config.test_settings`, which overrides the application database with in-memory SQLite. This keeps `pytest` independent from a running local PostgreSQL server while the normal development/runtime settings continue to use PostgreSQL.
+
+```bash
+cd backend
+python -m pytest
+```
+
+## Production And Secrets Notes
+
+Do not commit real database passwords, Stripe keys or OAuth client IDs. The example env files use placeholders, and `docker-compose.yml` reads sensitive values from `backend/.env`. For production websocket/chat deployments, set `CHANNEL_LAYER_REDIS_URL`; when `DEBUG=False`, the backend refuses to start without a Redis-backed Channels layer. The Google sign-in client ID must be provided through `GOOGLE_CLIENT_ID` for the backend and `NUXT_PUBLIC_GOOGLE_CLIENT_ID` for the frontend.
 
 ## User Roles
 
@@ -102,7 +130,7 @@ Rules:
 
 This repository is intentionally an MVP and has a few known limitations:
 
-- SQLite is used by default for simplicity of setup, not for production traffic.
+- PostgreSQL is used by default; the current setup is intended for MVP/demo usage, not production traffic.
 - Payments, shipment integration, refunds and inventory reservation are not implemented.
 - Recommendation logic is rule-based and explainable, but it is not a machine-learning system.
 - The project prioritizes core marketplace flows over advanced operational features such as notifications, analytics pipelines and audit logs.

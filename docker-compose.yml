@@ -4,16 +4,13 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: store
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "8747"
+    env_file: ./backend/.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d store"]
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -27,13 +24,10 @@ services:
     env_file: ./backend/.env
     environment:
       DB_HOST: db
-      DB_PORT: "5432"
-      DB_NAME: store
-      DB_USER: postgres
-      DB_PASSWORD: "8747"
       DEBUG: "True"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CHANNEL_LAYER_REDIS_URL: redis://redis:6379/1
     volumes:
       - ./backend:/app
     ports:
@@ -61,12 +55,9 @@ services:
     env_file: ./backend/.env
     environment:
       DB_HOST: db
-      DB_PORT: "5432"
-      DB_NAME: store
-      DB_USER: postgres
-      DB_PASSWORD: "8747"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CHANNEL_LAYER_REDIS_URL: redis://redis:6379/1
     volumes:
       - ./backend:/app
     depends_on:
@@ -83,6 +74,7 @@ services:
     restart: unless-stopped
     environment:
       NUXT_PUBLIC_API_BASE: http://localhost:8000/api
+      NUXT_PUBLIC_GOOGLE_CLIENT_ID: ${NUXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     ports:
       - "3000:3000"
     depends_on:
