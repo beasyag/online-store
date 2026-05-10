@@ -104,22 +104,12 @@ else:
     running_in_container = DB_HOST in {"db", "postgres-service"}
 
     if running_in_container:
-        db_name = env_value("POSTGRES_DB", "DB_NAME", default="store")
-        db_user = env_value("POSTGRES_USER", "DB_USER", default="postgres")
-        db_password = env_value("POSTGRES_PASSWORD", "DB_PASSWORD")
-    else:
-        db_name = env_value("DB_NAME", "POSTGRES_DB", default="store")
-        db_user = env_value("DB_USER", "POSTGRES_USER", default="postgres")
-        db_password = env_value("DB_PASSWORD", "POSTGRES_PASSWORD")
+
 
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": db_name,
-            "USER": db_user,
-            "PASSWORD": db_password,
-            "HOST": DB_HOST,
-            "PORT": DB_PORT,
+
         }
     }
 

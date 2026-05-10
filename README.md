@@ -35,6 +35,7 @@ docker compose up --build
 
 If you need to keep the data in that volume, create the role/database inside PostgreSQL instead of deleting the volume.
 
+
 ## Tests
 
 Backend tests use `config.test_settings`, which overrides the application database with in-memory SQLite. This keeps `pytest` independent from a running local PostgreSQL server while the normal development/runtime settings continue to use PostgreSQL.
