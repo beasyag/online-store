@@ -91,14 +91,23 @@ if DB_ENGINE in {"sqlite", "sqlite3"}:
         }
     }
 else:
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_PORT = os.getenv("DB_PORT", "5432")
+    running_in_container = DB_HOST in {"db", "postgres-service"}
+
+    if running_in_container:
+        db_name = os.getenv("POSTGRES_DB") or os.getenv("DB_NAME", "store")
+        db_user = os.getenv("POSTGRES_USER") or os.getenv("DB_USER", "postgres")
+        db_password = os.getenv("POSTGRES_PASSWORD") or os.getenv("DB_PASSWORD", "")
+    else:
+        db_name = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "store")
+        db_user = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "postgres")
+        db_password = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "")
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "store"),
-            "USER": os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "postgres"),
-            "PASSWORD": os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", ""),
-            "HOST": os.getenv("DB_HOST", "localhost"),
-            "PORT": os.getenv("DB_PORT", "5432"),
+
         }
     }
 

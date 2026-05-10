@@ -5,8 +5,12 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     env_file: ./backend/.env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-store}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-db-password}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_v2:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
@@ -24,6 +28,9 @@ services:
     env_file: ./backend/.env
     environment:
       DB_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-store}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-db-password}
       DEBUG: "True"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
@@ -52,6 +59,9 @@ services:
     env_file: ./backend/.env
     environment:
       DB_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-store}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-db-password}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CHANNEL_LAYER_REDIS_URL: redis://redis:6379/1
@@ -79,4 +89,4 @@ services:
       - backend
 
 volumes:
-  postgres_data:
+  postgres_data_v2:

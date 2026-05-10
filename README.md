@@ -24,6 +24,16 @@ python manage.py runserver
 
 ### Docker database credentials
 
+`docker-compose.yml` reads PostgreSQL credentials from `backend/.env` and also provides local-development defaults for `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` so a fresh PostgreSQL container can initialize even if those keys are missing from a local env file. Django accepts either the `DB_*` variables or the matching `POSTGRES_*` variables. When running in Docker, the backend prefers `POSTGRES_*` so it connects with the same credentials used to initialize the PostgreSQL container; for host-machine runs it prefers `DB_*`. The backend retries migrations while PostgreSQL starts, so it does not depend on Docker Compose's `service_healthy` gate.
+
+If the PostgreSQL container logs `Database directory appears to contain a database; Skipping initialization` followed by authentication errors such as `Role "postgres" does not exist` or `role "root" does not exist`, first make sure `backend/.env` contains the `POSTGRES_*` variables from `backend/.env.example`. The Compose volume is named `postgres_data_v2` so it does not reuse older local volumes from previous credential experiments. If the variables are present and the error continues, the named Docker volume was initialized with older credentials. For disposable local data, reset it and start from a fresh database:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+If you need to keep the data in that volume, create the role/database inside PostgreSQL instead of deleting the volume.
 
 ```bash
 docker compose down -v
