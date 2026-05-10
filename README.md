@@ -5,8 +5,23 @@ MarketFlow is a full-stack MVP multi-vendor marketplace built with Nuxt 3 and Dj
 ## Stack
 
 - Frontend: Nuxt 3, Vue 3, Pinia, TailwindCSS
-- Backend: Python 3, Django, DRF, SimpleJWT, SQLite
+- Backend: Python 3, Django, DRF, SimpleJWT, PostgreSQL
 - Seed data: Faker + custom marketplace-oriented generation
+
+
+## Local Backend Setup
+
+The backend uses PostgreSQL by default. Before running `python manage.py runserver`, create a local environment file from the example and make sure PostgreSQL is running:
+
+```bash
+cp backend/.env.example backend/.env
+docker compose up -d db redis
+cd backend
+python manage.py migrate
+python manage.py runserver
+```
+
+If you start Django without `backend/.env`, the default settings may try to connect to PostgreSQL with an empty `DB_PASSWORD`, which causes an error like `psycopg.OperationalError: connection failed: fe_sendauth: no password supplied`. The sample `.env` includes `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, and `DB_PORT` values that match `docker-compose.yml`.
 
 ## User Roles
 
@@ -102,7 +117,7 @@ Rules:
 
 This repository is intentionally an MVP and has a few known limitations:
 
-- SQLite is used by default for simplicity of setup, not for production traffic.
+- PostgreSQL is used by default; the current setup is intended for MVP/demo usage, not production traffic.
 - Payments, shipment integration, refunds and inventory reservation are not implemented.
 - Recommendation logic is rule-based and explainable, but it is not a machine-learning system.
 - The project prioritizes core marketplace flows over advanced operational features such as notifications, analytics pipelines and audit logs.
