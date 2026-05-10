@@ -107,11 +107,7 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": db_name,
-            "USER": db_user,
-            "PASSWORD": db_password,
-            "HOST": DB_HOST,
-            "PORT": DB_PORT,
+
         }
     }
 
