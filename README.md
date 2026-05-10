@@ -15,13 +15,13 @@ The backend uses PostgreSQL by default for local application runs. Before runnin
 
 ```bash
 cp backend/.env.example backend/.env
+
 docker compose up -d db redis
 cd backend
 python manage.py migrate
 python manage.py runserver
 ```
 
-If you start Django without `backend/.env`, the default settings may try to connect to PostgreSQL with an empty `DB_PASSWORD`, which causes an error like `psycopg.OperationalError: connection failed: fe_sendauth: no password supplied`. The sample `.env` includes the `DB_*` values used by Django and the `POSTGRES_*` values used by `docker-compose.yml`; keep `DB_PASSWORD` and `POSTGRES_PASSWORD` identical for local Docker runs. If you already created the Docker PostgreSQL volume with a different password, either set both password variables back to that old value or recreate the volume.
 
 ## Tests
 
