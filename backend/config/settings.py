@@ -82,7 +82,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-DB_ENGINE = os.getenv("DB_ENGINE", "postgresql").strip().lower()
+def env_value(*names, default=""):
+    for name in names:
+        value = os.getenv(name)
+        if value is not None and value.strip():
+            return value
+    return default
+
+
+DB_ENGINE = env_value("DB_ENGINE", default="postgresql").strip().lower()
 if DB_ENGINE in {"sqlite", "sqlite3"}:
     DATABASES = {
         "default": {
@@ -96,13 +104,7 @@ else:
     running_in_container = DB_HOST in {"db", "postgres-service"}
 
     if running_in_container:
-        db_name = os.getenv("POSTGRES_DB") or os.getenv("DB_NAME", "store")
-        db_user = os.getenv("POSTGRES_USER") or os.getenv("DB_USER", "postgres")
-        db_password = os.getenv("POSTGRES_PASSWORD") or os.getenv("DB_PASSWORD", "")
-    else:
-        db_name = os.getenv("DB_NAME") or os.getenv("POSTGRES_DB", "store")
-        db_user = os.getenv("DB_USER") or os.getenv("POSTGRES_USER", "postgres")
-        db_password = os.getenv("DB_PASSWORD") or os.getenv("POSTGRES_PASSWORD", "")
+
 
     DATABASES = {
         "default": {

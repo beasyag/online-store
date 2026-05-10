@@ -35,12 +35,6 @@ docker compose up --build
 
 If you need to keep the data in that volume, create the role/database inside PostgreSQL instead of deleting the volume.
 
-```bash
-docker compose down -v
-docker compose up --build
-```
-
-If you need to keep the data in that volume, create the role/database inside PostgreSQL instead of deleting the volume.
 
 ## Tests
 
