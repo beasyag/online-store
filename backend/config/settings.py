@@ -82,7 +82,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-DB_ENGINE = os.getenv("DB_ENGINE", "postgresql").strip().lower()
+def env_value(*names, default=""):
+    for name in names:
+        value = os.getenv(name)
+        if value is not None and value.strip():
+            return value
+    return default
+
+
+DB_ENGINE = env_value("DB_ENGINE", default="postgresql").strip().lower()
 if DB_ENGINE in {"sqlite", "sqlite3"}:
     DATABASES = {
         "default": {
@@ -91,14 +99,27 @@ if DB_ENGINE in {"sqlite", "sqlite3"}:
         }
     }
 else:
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_PORT = os.getenv("DB_PORT", "5432")
+    running_in_container = DB_HOST in {"db", "postgres-service"}
+
+    if running_in_container:
+        db_name = env_value("POSTGRES_DB", "DB_NAME", default="store")
+        db_user = env_value("POSTGRES_USER", "DB_USER", default="postgres")
+        db_password = env_value("POSTGRES_PASSWORD", "DB_PASSWORD")
+    else:
+        db_name = env_value("DB_NAME", "POSTGRES_DB", default="store")
+        db_user = env_value("DB_USER", "POSTGRES_USER", default="postgres")
+        db_password = env_value("DB_PASSWORD", "POSTGRES_PASSWORD")
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("DB_NAME", "store"),
-            "USER": os.getenv("DB_USER", "postgres"),
-            "PASSWORD": os.getenv("DB_PASSWORD", ""),
-            "HOST": os.getenv("DB_HOST", "localhost"),
-            "PORT": os.getenv("DB_PORT", "5432"),
+            "NAME": db_name,
+            "USER": db_user,
+            "PASSWORD": db_password,
+            "HOST": DB_HOST,
+            "PORT": DB_PORT,
         }
     }
 
