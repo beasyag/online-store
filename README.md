@@ -23,6 +23,7 @@ python manage.py runserver
 ```
 
 
+
 ## Tests
 
 Backend tests use `config.test_settings`, which overrides the application database with in-memory SQLite. This keeps `pytest` independent from a running local PostgreSQL server while the normal development/runtime settings continue to use PostgreSQL.
