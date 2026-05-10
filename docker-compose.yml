@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      test: ['CMD-SHELL', 'pg_user="$${POSTGRES_USER:-$${DB_USER:-postgres}}"; pg_db="$${POSTGRES_DB:-$${DB_NAME:-store}}"; pg_pass="$${POSTGRES_PASSWORD:-$${DB_PASSWORD:-}}"; PGPASSWORD="$$pg_pass" psql -U "$$pg_user" -d "$$pg_db" -c "SELECT 1" >/dev/null']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -34,11 +34,8 @@ services:
       - "8000:8000"
     depends_on:
       db:
-        condition: service_healthy
-    command: >
-
-             python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
+        condition: service_started
+    command: ["sh", "-c", "for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do python manage.py migrate && exec python manage.py runserver 0.0.0.0:8000; echo 'Database unavailable - retrying...'; sleep 2; done; python manage.py migrate && exec python manage.py runserver 0.0.0.0:8000"]
 
   # ─── Redis (Broker & Cache) ────────────────────────────────────────────────
   redis:
@@ -62,11 +59,11 @@ services:
     volumes:
       - ./backend:/app
     depends_on:
-      - redis
-      - backend
-    command: >
-
-             celery -A config worker -l INFO"
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    command: ["celery", "-A", "config", "worker", "-l", "INFO"]
 
   # ─── Nuxt 3 Frontend ─────────────────────────────────────────────────────
   frontend:
