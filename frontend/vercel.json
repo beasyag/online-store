@@ -1,14 +1,10 @@
 {
-  "framework": "nuxtjs",
-  "buildCommand": "npm run build",
+  "buildCommand": "npx nuxt generate",
   "outputDirectory": ".output/public",
-  "routes": [
+  "rewrites": [
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
