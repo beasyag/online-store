@@ -1,7 +1,9 @@
 from datetime import timedelta
+import re
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import connection
 from django.db.models import DecimalField, ExpressionWrapper, F, Q
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 from django.http import Http404
@@ -27,6 +29,78 @@ from .serializers import (
 from .services import get_product_queryset
 
 
+EN_TO_RU_KEYBOARD = str.maketrans(
+    {
+        "q": "й",
+        "w": "ц",
+        "e": "у",
+        "r": "к",
+        "t": "е",
+        "y": "н",
+        "u": "г",
+        "i": "ш",
+        "o": "щ",
+        "p": "з",
+        "[": "х",
+        "]": "ъ",
+        "a": "ф",
+        "s": "ы",
+        "d": "в",
+        "f": "а",
+        "g": "п",
+        "h": "р",
+        "j": "о",
+        "k": "л",
+        "l": "д",
+        ";": "ж",
+        "'": "э",
+        "z": "я",
+        "x": "ч",
+        "c": "с",
+        "v": "м",
+        "b": "и",
+        "n": "т",
+        "m": "ь",
+        ",": "б",
+        ".": "ю",
+        "`": "ё",
+        "Q": "Й",
+        "W": "Ц",
+        "E": "У",
+        "R": "К",
+        "T": "Е",
+        "Y": "Н",
+        "U": "Г",
+        "I": "Ш",
+        "O": "Щ",
+        "P": "З",
+        "{": "Х",
+        "}": "Ъ",
+        "A": "Ф",
+        "S": "Ы",
+        "D": "В",
+        "F": "А",
+        "G": "П",
+        "H": "Р",
+        "J": "О",
+        "K": "Л",
+        "L": "Д",
+        ":": "Ж",
+        '"': "Э",
+        "Z": "Я",
+        "X": "Ч",
+        "C": "С",
+        "V": "М",
+        "B": "И",
+        "N": "Т",
+        "M": "Ь",
+        "<": "Б",
+        ">": "Ю",
+        "~": "Ё",
+    }
+)
+
+
 def _favorite_ids_for_user(user):
     if not user.is_authenticated:
         return set()
@@ -39,6 +113,29 @@ def _cached_public_products(cache_key: str, fetcher):
         products = list(fetcher())
         cache.set(cache_key, products, timeout=settings.CACHE_TTL_PUBLIC_LISTS)
     return products
+
+
+def _search_prefix_query(query: str) -> str:
+    tokens = re.findall(r"[\w]+", query, flags=re.UNICODE)
+    return " & ".join(f"{token}:*" for token in tokens)
+
+
+def _search_query_variants(query: str) -> list[str]:
+    variants = [query]
+    converted = query.translate(EN_TO_RU_KEYBOARD)
+    if converted != query and re.search(r"[а-яА-ЯёЁ]", converted):
+        variants.append(converted)
+    return variants
+
+
+def _soft_search_filter(query: str) -> Q:
+    return (
+        Q(name__icontains=query)
+        | Q(description__icontains=query)
+        | Q(tags__name__icontains=query)
+        | Q(category__name__icontains=query)
+        | Q(seller__shop_name__icontains=query)
+    )
 
 
 class CategoryListAPIView(generics.ListAPIView):
@@ -68,22 +165,49 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
         if mine_only and hasattr(user, "seller_profile"):
             queryset = queryset.filter(seller=user.seller_profile)
 
-        query = request.query_params.get("q")
+        query = (request.query_params.get("q") or "").strip()
         if query:
-            search_vector = (
-                SearchVector("name", weight="A", config="russian")
-                + SearchVector("description", weight="B", config="russian")
-                + SearchVector("tags__name", weight="B", config="russian")
-                + SearchVector("category__name", weight="C", config="russian")
-                + SearchVector("seller__shop_name", weight="C", config="russian")
-            )
-            search_query = SearchQuery(query, config="russian", search_type="websearch")
-            queryset = (
-                queryset
-                .annotate(search=search_vector, rank=SearchRank(search_vector, search_query))
-                .filter(Q(search=search_query) | Q(name__icontains=query))
-                .order_by("-rank")
-            )
+            query_variants = _search_query_variants(query)
+            soft_filter = Q()
+            for query_variant in query_variants:
+                soft_filter |= _soft_search_filter(query_variant)
+
+            if connection.vendor == "postgresql":
+                search_vector = (
+                    SearchVector("name", weight="A", config="russian")
+                    + SearchVector("description", weight="B", config="russian")
+                    + SearchVector("tags__name", weight="B", config="russian")
+                    + SearchVector("category__name", weight="C", config="russian")
+                    + SearchVector("seller__shop_name", weight="C", config="russian")
+                )
+                search_queries = []
+                for query_variant in query_variants:
+                    search_queries.append(SearchQuery(query_variant, config="russian", search_type="websearch"))
+                    prefix_query_value = _search_prefix_query(query_variant)
+                    if prefix_query_value:
+                        search_queries.append(SearchQuery(prefix_query_value, config="russian", search_type="raw"))
+
+                rank_expression = None
+                search_filter = Q()
+                for search_query in search_queries:
+                    rank_expression = (
+                        SearchRank(search_vector, search_query)
+                        if rank_expression is None
+                        else rank_expression + SearchRank(search_vector, search_query)
+                    )
+                    search_filter |= Q(search=search_query)
+
+                queryset = (
+                    queryset
+                    .annotate(
+                        search=search_vector,
+                        rank=rank_expression,
+                    )
+                    .filter(search_filter | soft_filter)
+                    .order_by("-rank", "-purchases_count", "-views_count", "-created_at")
+                )
+            else:
+                queryset = queryset.filter(soft_filter).order_by("-purchases_count", "-views_count", "-created_at")
 
         category = request.query_params.get("category")
         if category:
@@ -119,7 +243,9 @@ class ProductListCreateAPIView(generics.ListCreateAPIView):
             "new": "-created_at",
             "rating": "-average_rating",
         }
-        if ordering in ordering_map:
+        if query:
+            pass
+        elif ordering in ordering_map:
             queryset = queryset.order_by(ordering_map[ordering], "-created_at")
         else:
             queryset = queryset.order_by("-created_at")

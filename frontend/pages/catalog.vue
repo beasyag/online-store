@@ -20,7 +20,7 @@ const buildQuery = (params: Record<string, string | undefined>) => {
 const catalogQuery = computed(() =>
   buildQuery({
     q: search.value || undefined,
-    ordering: "popular"
+    ordering: search.value ? undefined : "popular"
   })
 );
 
