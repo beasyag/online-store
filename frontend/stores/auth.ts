@@ -43,6 +43,10 @@ export const useAuthStore = defineStore("auth", () => {
     return [user.value.first_name, user.value.last_name].filter(Boolean).join(" ") || user.value.username;
   });
 
+  const setAccessToken = (token: string) => {
+    accessTokenCookie.value = token;
+  };
+
   const applyLogin = (payload: LoginResponse) => {
     accessTokenCookie.value = payload.access;
     refreshTokenCookie.value = payload.refresh;
@@ -101,11 +105,12 @@ export const useAuthStore = defineStore("auth", () => {
     loggedIn,
     initialized,
     fullName,
+    setAccessToken,
     bootstrap,
     fetchProfile,
     login,
     googleLogin,
     register,
-    logout
+    logout,
   };
 });
