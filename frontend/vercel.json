@@ -1,0 +1,14 @@
+{
+  "framework": "nuxtjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".output/public",
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
