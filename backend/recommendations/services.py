@@ -59,7 +59,22 @@ def get_new_products(limit: int = 12):
 
 
 def get_similar_products(product: Product, limit: int = 8):
-    candidates = list(get_product_queryset(only_primary=True).exclude(pk=product.pk))
+    tag_ids = {tag.id for tag in product.tags.all()}
+    candidates_qs = get_product_queryset(only_primary=True).exclude(pk=product.pk)
+
+    if product.offer_group:
+        candidates_qs = candidates_qs.exclude(offer_group=product.offer_group)
+
+    filters = Q(category_id=product.category_id)
+    if tag_ids:
+        filters |= Q(tags__id__in=tag_ids)
+    candidates_qs = candidates_qs.filter(filters).distinct()
+
+    candidates_qs = candidates_qs.order_by(
+        "-purchases_count", "-views_count", "-created_at",
+    )[:limit * 10]
+
+    candidates = list(candidates_qs)
     scored_products = []
     for candidate in candidates:
         score = base_similarity_score(candidate, product) + popularity_bonus(candidate)
