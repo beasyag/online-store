@@ -1,6 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .serializers import (
@@ -15,10 +16,14 @@ from .serializers import (
 class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
 
 class MarketplaceTokenObtainPairView(TokenObtainPairView):
     serializer_class = MarketplaceTokenObtainPairSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
 
 class ProfileAPIView(generics.RetrieveAPIView):
@@ -36,6 +41,8 @@ class MarketplaceTokenRefreshView(TokenRefreshView):
 class GoogleAuthAPIView(generics.GenericAPIView):
     serializer_class = GoogleAuthSerializer
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
