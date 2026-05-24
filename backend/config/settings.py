@@ -161,7 +161,7 @@ CACHES = {
 CACHE_TTL_PUBLIC_LISTS = int(os.getenv("CACHE_TTL_PUBLIC_LISTS", "120"))
 PRODUCT_VIEW_COOLDOWN_MINUTES = int(os.getenv("PRODUCT_VIEW_COOLDOWN_MINUTES", "30"))
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "https://marketflow-app.vercel.app").rstrip("/")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "").strip()
 
 REST_FRAMEWORK = {
