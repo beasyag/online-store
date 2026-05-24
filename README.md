@@ -1,85 +1,45 @@
 # MarketFlow
 
-MarketFlow is a full-stack MVP multi-vendor marketplace built with Nuxt 3 and Django REST Framework. It includes buyers, sellers, products, carts, orders, favorites, reviews and a scoring-based recommendation engine that uses browsing, cart, favorites and purchase history.
+MarketFlow - MVP многопродавцового маркетплейса на Nuxt 3 и Django REST Framework. Проект покрывает основные сценарии онлайн-магазина: каталог товаров, регистрацию и вход, роли покупателя и продавца, корзину, заказы, избранное, отзывы, чат, оплату через Stripe и персональные рекомендации.
 
-## Stack
+## Стек
 
 - Frontend: Nuxt 3, Vue 3, Pinia, TailwindCSS
-- Backend: Python 3, Django, DRF, SimpleJWT, PostgreSQL
-- Seed data: Faker + custom marketplace-oriented generation
+- Backend: Python 3, Django 5, Django REST Framework, SimpleJWT
+- База данных: PostgreSQL
+- Очереди и фоновые задачи: Redis + Celery
+- Realtime: Django Channels + Redis
+- API-документация: drf-spectacular, Swagger, Redoc
+- Платежи: Stripe
+- Демо-данные: Faker и кастомная генерация маркетплейса
+- Контейнеризация: Docker Compose
+- Оркестрация: Kubernetes-манифесты
 
+## Основные возможности
 
-## Local Backend Setup
+- Каталог товаров с категориями, тегами, продавцами и несколькими предложениями внутри одной товарной группы.
+- Поиск по товарам с PostgreSQL full-text search, поиском по началу слова и исправлением английской раскладки на русскую.
+- Персональные рекомендации на основе просмотров, корзины, избранного и покупок.
+- Регистрация, JWT-авторизация и профиль пользователя.
+- Роли: гость, покупатель, продавец, администратор.
+- Корзина и оформление multi-vendor заказа.
+- Самовывоз, курьерская доставка и выбор пункта выдачи.
+- Избранное и отзывы на товары.
+- Кабинет продавца, управление товарами и просмотр заказов продавца.
+- Чат между покупателем и продавцом.
+- Stripe Checkout для онлайн-оплаты.
+- Swagger/Redoc документация API.
 
-The backend uses PostgreSQL by default for local application runs. Before running `python manage.py runserver`, create a local environment file from the example and make sure PostgreSQL is running:
+## Роли пользователей
 
-```bash
-cp backend/.env.example backend/.env
+- Гость: просматривает каталог, товары, продавцов и получает популярные рекомендации.
+- Покупатель: регистрируется, входит в аккаунт, добавляет товары в корзину и избранное, оформляет заказы, оставляет отзывы и получает персональные рекомендации.
+- Продавец: создает профиль продавца, публикует и редактирует товары, смотрит заказы и метрики в кабинете.
+- Администратор: управляет данными через Django Admin.
 
-docker compose up -d db redis
-cd backend
-python manage.py migrate
-python manage.py runserver
-```
+## Архитектура
 
-### Docker database credentials
-
-`docker-compose.yml` reads PostgreSQL credentials from `backend/.env` and also provides local-development defaults for `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` so a fresh PostgreSQL container can initialize even if those keys are missing from a local env file. Django accepts either the `DB_*` variables or the matching `POSTGRES_*` variables. When running in Docker, the backend prefers `POSTGRES_*` so it connects with the same credentials used to initialize the PostgreSQL container; for host-machine runs it prefers `DB_*`. The backend retries migrations while PostgreSQL starts, so it does not depend on Docker Compose's `service_healthy` gate.
-
-If the PostgreSQL container logs `Database directory appears to contain a database; Skipping initialization` followed by authentication errors such as `Role "postgres" does not exist` or `role "root" does not exist`, first make sure `backend/.env` contains the `POSTGRES_*` variables from `backend/.env.example`. The Compose volume is named `postgres_data_v2` so it does not reuse older local volumes from previous credential experiments. If the variables are present and the error continues, the named Docker volume was initialized with older credentials. For disposable local data, reset it and start from a fresh database:
-
-```bash
-docker compose down -v
-docker compose up --build
-```
-
-If you need to keep the data in that volume, create the role/database inside PostgreSQL instead of deleting the volume.
-
-
-## Tests
-
-Backend tests use `config.test_settings`, which overrides the application database with in-memory SQLite. This keeps `pytest` independent from a running local PostgreSQL server while the normal development/runtime settings continue to use PostgreSQL.
-
-```bash
-cd backend
-python -m pytest
-```
-
-## Production And Secrets Notes
-
-Do not commit real database passwords, Stripe keys or OAuth client IDs. The example env files use placeholders, and `docker-compose.yml` reads sensitive values from `backend/.env`. For production websocket/chat deployments, set `CHANNEL_LAYER_REDIS_URL`; when `DEBUG=False`, the backend refuses to start without a Redis-backed Channels layer. The Google sign-in client ID must be provided through `GOOGLE_CLIENT_ID` for the backend and `NUXT_PUBLIC_GOOGLE_CLIENT_ID` for the frontend.
-
-## User Roles
-
-- Guest: can browse the catalog, open product pages, view sellers and receive popular fallback recommendations.
-- Buyer: can register, log in, add items to cart, manage favorites, place orders, leave reviews and receive personalized recommendations.
-- Seller: can create a seller profile, publish and edit products, view seller orders and inspect seller dashboard metrics.
-- Admin: can moderate and manage data through Django Admin.
-
-## Architecture Overview
-
-1. The repository is split into independent `frontend` and `backend` applications to keep UI and API concerns separated.
-2. The frontend is built with Nuxt 3 and Vue 3, using pages, components, composables and Pinia stores for UI state and API interaction.
-3. The backend is built as a modular Django project where each domain area lives in its own app: `users`, `sellers`, `products`, `cart`, `orders`, `reviews`, `favorites`, `recommendations`.
-4. Authentication is implemented with JWT via SimpleJWT, while profile and role-specific behavior are exposed through DRF endpoints.
-5. The catalog domain is centered around products, categories, tags and seller offers, with filtering, popularity sorting, deal/new sections and product detail pages.
-6. Buyer activity is captured through view history, favorites, cart state and purchases, and these signals feed the recommendation logic.
-7. Recommendation generation is explainable and score-based rather than ML-based, combining similarity and popularity into a final ranking.
-8. Order creation is transactional and creates a marketplace order from cart contents while validating availability and updating stock.
-9. Seed scripts generate realistic marketplace data so the project can be demonstrated with populated catalogs, sellers, orders and recommendation signals.
-
-## Personal Contribution
-
-This project was implemented as a full-stack MVP with personal responsibility for the key product and engineering decisions:
-
-- designed the marketplace domain model for buyers, sellers, products, carts, orders, favorites and reviews;
-- implemented the Django REST API, authentication flow and seller/buyer role behavior;
-- built the Nuxt 3 frontend with catalog, auth, cart, favorites, account and seller pages;
-- implemented the personalized recommendation engine based on browsing, cart, favorites and purchase history;
-- created seed data generation for large demo datasets and realistic recommendation scenarios;
-- connected frontend and backend into a working end-to-end marketplace demo.
-
-## Project Structure
+Репозиторий разделен на два независимых приложения:
 
 ```text
 backend/
@@ -92,6 +52,8 @@ backend/
   reviews/
   favorites/
   recommendations/
+  chat/
+
 frontend/
   assets/
   components/
@@ -103,54 +65,74 @@ frontend/
   types/
 ```
 
-## Backend Apps
+Backend построен как набор Django-приложений по доменным зонам. Frontend построен на Nuxt pages/components/composables/stores. API вызывается через общий `useApiClient`.
 
-- `users`: custom `User`, registration, login, JWT profile endpoint
-- `sellers`: `SellerProfile`, seller storefront endpoints, seller dashboard
-- `products`: categories, tags, products, catalog filtering, product detail, product view history
-- `cart`: buyer cart and cart items
-- `orders`: multi-vendor order creation and seller-side order visibility
-- `reviews`: product reviews and ratings
-- `favorites`: favorite toggle and favorites list
-- `recommendations`: personalized, popular and similar product logic
+## Backend-приложения
 
-## Recommendation Logic
+- `users` - кастомная модель пользователя, регистрация, вход, JWT, профиль.
+- `sellers` - профиль продавца, витрина продавца, dashboard продавца.
+- `products` - категории, теги, товары, фильтрация, поиск, похожие товары, история просмотров.
+- `cart` - корзина покупателя.
+- `orders` - создание заказов, заказы покупателя и продавца, филиалы самовывоза.
+- `reviews` - отзывы и рейтинг товаров.
+- `favorites` - избранные товары.
+- `recommendations` - персональные, популярные и похожие рекомендации.
+- `chat` - комнаты и сообщения между покупателем и продавцом.
 
-The project uses a lightweight scoring-based recommendation approach instead of ML.
+## Поиск
 
-Base similarity between two products:
+Поиск работает через `GET /api/products/?q=<запрос>`.
 
-- `+3` if the category matches
-- `+2` if the price is close
-- `+2` if tags overlap
+Backend ищет по:
 
-User signal weights:
+- названию товара;
+- описанию;
+- тегам;
+- категории;
+- названию магазина продавца.
 
-- `+4` for similarity to viewed products
-- `+5` for similarity to purchased products
-- `+3` for similarity to favorites
-- `+3` for similarity to items currently in cart
-- `+0..2` popularity bonus from purchases, views and average rating
+Для PostgreSQL используется full-text search с русской конфигурацией. Дополнительно включены:
 
-Rules:
+- поиск по началу слова: `кн` может находить `книга`, `книги`;
+- мягкий fallback через `icontains`;
+- исправление английской раскладки на русскую: `rybub` дополнительно ищется как `книги`.
 
-- purchased products are excluded from personalized output
-- duplicate products are removed
-- results are sorted by final score
-- anonymous users fall back to popular products
+Если поисковый запрос активен, выдача сортируется по релевантности, а не только по популярности.
 
-## MVP Scope And Limitations
+## Рекомендации
 
-This repository is intentionally an MVP and has a few known limitations:
+Система рекомендаций rule-based, без ML-модели. Она объяснима и подходит для MVP.
 
-- PostgreSQL is used by default; the current setup is intended for MVP/demo usage, not production traffic.
-- Payments, shipment integration, refunds and inventory reservation are not implemented.
-- Recommendation logic is rule-based and explainable, but it is not a machine-learning system.
-- The project prioritizes core marketplace flows over advanced operational features such as notifications, analytics pipelines and audit logs.
-- Production deployment settings, observability and scaling concerns are not the main focus of the current version.
-- Test coverage is limited and should be expanded before treating the project as production-ready.
+Базовая похожесть товаров:
 
-## Main API Endpoints
+- `+3`, если совпадает категория;
+- `+2`, если цена близкая;
+- `+2`, если пересекаются теги.
+
+Сигналы пользователя:
+
+- `+4` за похожесть на просмотренные товары;
+- `+5` за похожесть на купленные товары;
+- `+3` за похожесть на избранное;
+- `+3` за похожесть на товары в корзине;
+- `+0..2` бонус за популярность, просмотры и рейтинг.
+
+Правила:
+
+- купленные товары исключаются из персональной выдачи;
+- дубликаты удаляются;
+- результаты сортируются по итоговому score;
+- анонимные пользователи получают популярные товары.
+
+## API-документация
+
+После запуска backend:
+
+- Swagger: `http://127.0.0.1:8000/api/docs/`
+- Redoc: `http://127.0.0.1:8000/api/redoc/`
+- OpenAPI schema: `http://127.0.0.1:8000/api/schema/`
+
+## Основные API endpoints
 
 Auth:
 
@@ -191,6 +173,7 @@ Cart:
 
 Orders:
 
+- `GET /api/branches/`
 - `POST /api/orders/create/`
 - `GET /api/orders/`
 - `GET /api/orders/{id}/`
@@ -211,128 +194,51 @@ Recommendations:
 
 - `GET /api/recommendations/`
 
-## Example API Responses
+Chat:
 
-`GET /api/products/`
+- `GET /api/chat/rooms/`
+- `POST /api/chat/rooms/start/`
+- `GET /api/chat/rooms/{id}/messages/`
 
-```json
-{
-  "count": 1000,
-  "next": "http://127.0.0.1:8000/api/products/?page=2",
-  "previous": null,
-  "results": [
-    {
-      "id": 12,
-      "name": "Nova Smartphone Pro",
-      "slug": "nova-smartphone-pro-12",
-      "price": "899.00",
-      "old_price": "1049.00",
-      "image_url": "https://picsum.photos/seed/product-12/800/800",
-      "stock": 19,
-      "category": {
-        "id": 1,
-        "name": "Electronics",
-        "slug": "electronics"
-      },
-      "seller": {
-        "id": 4,
-        "shop_name": "North Peak Store 4",
-        "avatar": "https://picsum.photos/seed/shop-4/240/240"
-      },
-      "tags": [
-        { "id": 1, "name": "wireless", "slug": "wireless" },
-        { "id": 2, "name": "premium", "slug": "premium" }
-      ],
-      "average_rating": 4.6,
-      "reviews_count": 24,
-      "views_count": 315,
-      "purchases_count": 87,
-      "created_at": "2026-02-07T13:14:00Z",
-      "is_favorite": false
-    }
-  ]
-}
-```
+Payments:
 
-`GET /api/recommendations/`
+- `POST /api/orders/{id}/checkout/`
 
-```json
-{
-  "strategy": "personalized",
-  "results": [
-    {
-      "id": 77,
-      "name": "Pulse Smartwatch Max",
-      "slug": "pulse-smartwatch-max-77",
-      "price": "349.00",
-      "old_price": null,
-      "category": {
-        "id": 1,
-        "name": "Electronics",
-        "slug": "electronics"
-      },
-      "seller": {
-        "id": 9,
-        "shop_name": "Urban Tech Store 9",
-        "avatar": "https://picsum.photos/seed/shop-9/240/240"
-      },
-      "average_rating": 4.7,
-      "reviews_count": 18,
-      "views_count": 241,
-      "purchases_count": 64,
-      "tags": [
-        { "id": 3, "name": "smart", "slug": "smart" },
-        { "id": 4, "name": "portable", "slug": "portable" }
-      ],
-      "is_favorite": false
-    }
-  ]
-}
-```
+## Локальный запуск без Docker
 
-`GET /api/seller/dashboard/`
+### 1. Backend
 
-```json
-{
-  "product_count": 23,
-  "orders_count": 61,
-  "sales_count": 118,
-  "total_sales": "14238.00",
-  "top_products": [],
-  "recent_orders": []
-}
-```
-
-## Personalized Recommendation Examples
-
-- User viewed several electronics items, added headphones to cart and favorited a smartwatch: the engine boosts electronics with overlapping tags such as `wireless`, `smart` and a similar price band.
-- User bought running shoes and a yoga mat: the engine promotes sports products with matching tags and adjacent price range while excluding already purchased items.
-- Anonymous user: `/api/recommendations/` returns the current popular-product fallback.
-
-## Run From Scratch
-
-### 1. Clone the repository
+Создайте env-файл:
 
 ```bash
-git clone <your-repository-url>
-cd online-store
+copy backend\.env.example backend\.env
 ```
 
-### 2. Start the backend
+Убедитесь, что PostgreSQL запущен и параметры в `backend/.env` корректны:
+
+```env
+DB_ENGINE=postgresql
+DB_NAME=store
+DB_USER=postgres
+DB_PASSWORD=8747
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+Запуск:
 
 ```bash
 cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env
 python manage.py migrate
 python manage.py runserver
 ```
 
-Backend default URL: `http://127.0.0.1:8000`
+Backend: `http://127.0.0.1:8000`
 
-### 3. Start the frontend
+### 2. Frontend
 
 ```bash
 cd frontend
@@ -341,65 +247,160 @@ npm install
 npm run dev
 ```
 
-Frontend default URL: `http://localhost:3000`
+Frontend: `http://localhost:3000`
 
-### 4. Optional: seed demo data
+## Запуск через Docker Compose
 
-```bash
-cd backend
-python manage.py seed_data --products 120 --sellers 12 --buyers 30 --orders 45 --clear
-```
-
-After seed:
-
-- admin credentials: `admin / admin12345`
-- sellers and buyers password: `market12345`
-
-## Demo Scenario
-
-Use this sequence for a short live demonstration of the MVP:
-
-1. Register a buyer account on the frontend and log in.
-2. Open the catalog, show product cards, discounts, popularity/new badges and the product detail page.
-3. Add one or two products to favorites and cart.
-4. Open the cart page, update quantity and create an order.
-5. Show order history and explain the order status block.
-6. Return to the home page and show the personalized recommendation section with the "why recommended" explanation.
-7. Log in as a seller account or create a seller profile.
-8. Open the seller dashboard, explain key metrics, top products and recent seller order activity.
-9. Open seller product management pages and show product creation/editing flow if needed.
-
-## Seed Large Test Data
+Перед первым запуском создайте `backend/.env`:
 
 ```bash
-cd backend
-python manage.py seed_data --products 1000 --sellers 50 --buyers 200 --orders 500 --clear
+copy backend\.env.example backend\.env
 ```
 
-Smaller smoke-run example:
+Запуск из корня проекта:
 
 ```bash
-python manage.py seed_data --products 120 --sellers 12 --buyers 30 --orders 45 --clear
+docker compose up --build
 ```
 
-Seed behavior:
+Сервисы Docker Compose:
 
-- creates `1` admin user
-- creates the requested sellers and buyers
-- distributes products across sellers
-- generates category-aware names, prices and descriptions
-- creates uneven popularity, views, favorites and reviews
-- creates multi-vendor orders with `1-5` items each
-- fills a subset of buyer carts
+- `db` - PostgreSQL, порт `5432`;
+- `redis` - Redis для Celery и Channels, порт `6379`;
+- `backend` - Django API, порт `8000`;
+- `celery` - Celery worker;
+- `frontend` - Nuxt dev server, порт `3000`.
 
-Default credentials after seed:
+Адреса:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://127.0.0.1:8000`
+- Swagger: `http://127.0.0.1:8000/api/docs/`
+
+Остановка:
+
+```bash
+docker compose down
+```
+
+Полный сброс контейнеров и volume базы данных:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+Данные PostgreSQL хранятся в Docker volume:
+
+```text
+postgres_data_v2
+```
+
+## Демо-данные
+
+Небольшой набор:
+
+```bash
+docker compose exec backend python manage.py seed_data --products 120 --sellers 12 --buyers 30 --orders 45 --clear
+```
+
+Большой набор:
+
+```bash
+docker compose exec backend python manage.py seed_data --products 1000 --sellers 50 --buyers 200 --orders 500 --clear
+```
+
+После генерации:
 
 - admin: `admin / admin12345`
-- sellers and buyers: password `market12345`
+- продавцы и покупатели: пароль `market12345`
 
-## Notes
+## Тесты
 
-- The repository intentionally keeps frontend and backend separated.
-- SQLite is used by default for a frictionless MVP setup.
-- The recommendation system is deliberately explainable and extendable rather than random.
-- Django Admin handles moderation and operational management for users, sellers, categories, tags, products, orders and reviews.
+Backend-тесты используют `config.test_settings`, где база заменяется на in-memory SQLite. Поэтому тесты можно запускать без локального PostgreSQL.
+
+```bash
+cd backend
+python -m pytest
+```
+
+## Kubernetes
+
+Манифесты находятся в папке `kubernetes/`.
+
+Текущие манифесты описывают:
+
+- backend deployment;
+- frontend deployment;
+- celery deployment;
+- redis service;
+- backend/frontend services.
+
+Применение:
+
+```bash
+kubectl apply -f kubernetes/
+```
+
+Важно: перед использованием в реальном кластере нужно заменить `my-registry/marketflow-backend:latest` и `my-registry/marketflow-frontend:latest` на реальные образы в registry, а также настроить PostgreSQL service/secret под окружение.
+
+Удаление ресурсов:
+
+```bash
+kubectl delete -f kubernetes/
+```
+
+## Переменные окружения
+
+Основные переменные backend:
+
+- `SECRET_KEY` - секрет Django.
+- `DEBUG` - режим разработки.
+- `ALLOWED_HOSTS` - разрешенные хосты.
+- `CORS_ALLOWED_ORIGINS` - frontend origins.
+- `DB_ENGINE` - `postgresql` или `sqlite`.
+- `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` - подключение к БД.
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` - инициализация PostgreSQL контейнера.
+- `CELERY_BROKER_URL` - broker Celery.
+- `CELERY_RESULT_BACKEND` - backend результатов Celery.
+- `CHANNEL_LAYER_REDIS_URL` - Redis для Django Channels.
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID.
+- `STRIPE_SECRET_KEY` - секретный ключ Stripe.
+- `FRONTEND_BASE_URL` - адрес frontend для redirect-сценариев.
+
+Основные переменные frontend:
+
+- `NUXT_PUBLIC_API_BASE` - публичный URL backend API.
+- `NUXT_PUBLIC_GOOGLE_CLIENT_ID` - Google OAuth client ID для frontend.
+
+## Сценарий демонстрации
+
+1. Открыть главную страницу и показать каталог.
+2. Выполнить поиск, включая короткий запрос и пример неправильной раскладки.
+3. Открыть карточку товара и показать предложения продавцов.
+4. Добавить товар в избранное и корзину.
+5. Оформить заказ с доставкой или самовывозом.
+6. Показать историю заказов покупателя.
+7. Показать блок персональных рекомендаций.
+8. Войти как продавец.
+9. Открыть кабинет продавца, список товаров и заказы.
+10. Показать Swagger-документацию API.
+
+## Ограничения MVP
+
+- Проект предназначен для демонстрации и дипломной работы, а не для production-нагрузки.
+- Рекомендации rule-based, без ML-модели.
+- Kubernetes-манифесты требуют адаптации под конкретный registry, secrets и ingress.
+- Stripe используется как интеграционный сценарий, без полного production billing flow.
+- Нужны дополнительные тесты перед production-использованием.
+
+## Безопасность
+
+Не коммитьте реальные секреты:
+
+- пароли БД;
+- Stripe secret key;
+- Google OAuth client ID;
+- production `SECRET_KEY`.
+
+Для production используйте отдельные secrets, HTTPS, отдельную БД, observability и резервное копирование.

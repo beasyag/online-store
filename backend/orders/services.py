@@ -14,7 +14,7 @@ from .models import Order, OrderItem
 
 def get_stripe_api_key():
     if not settings.STRIPE_SECRET_KEY:
-        raise serializers.ValidationError({"detail": "Stripe is not configured."})
+        raise serializers.ValidationError({"detail": "Stripe не настроен."})
     return settings.STRIPE_SECRET_KEY
 
 
@@ -29,7 +29,7 @@ def create_order_from_cart(
     cart = get_or_create_cart(user)
     cart_items = list(cart.items.select_related("product__seller").all())
     if not cart_items:
-        raise serializers.ValidationError({"detail": "Cart is empty."})
+        raise serializers.ValidationError({"detail": "Корзина пуста."})
 
     product_ids = sorted({item.product_id for item in cart_items})
     locked_products = {
@@ -52,11 +52,11 @@ def create_order_from_cart(
     for cart_item in cart_items:
         product = locked_products.get(cart_item.product_id)
         if product is None:
-            raise serializers.ValidationError({"detail": "One of the products in the cart no longer exists."})
+            raise serializers.ValidationError({"detail": "Одного из товаров в корзине больше не существует."})
         if not product.is_active:
-            raise serializers.ValidationError({"detail": f"{product.name} is not available."})
+            raise serializers.ValidationError({"detail": f"{product.name} недоступен."})
         if product.stock < cart_item.quantity:
-            raise serializers.ValidationError({"detail": f"Not enough stock for {product.name}."})
+            raise serializers.ValidationError({"detail": f"Недостаточно запасов для {product.name}."})
 
         order_items.append(
             OrderItem(
@@ -85,9 +85,9 @@ def create_order_from_cart(
 
 def create_checkout_session_for_order(order):
     if order.payment_method != Order.PaymentMethod.CARD_ONLINE:
-        raise serializers.ValidationError({"detail": "Stripe checkout is available only for online card payments."})
+        raise serializers.ValidationError({"detail": "Stripe checkout доступен только для онлайн-платежей карточками."})
     if order.status in {Order.Status.PAID, Order.Status.COMPLETED}:
-        raise serializers.ValidationError({"detail": "Order is already paid."})
+        raise serializers.ValidationError({"detail": "Заказ уже оплачен."})
 
     api_key = get_stripe_api_key()
     frontend_base_url = settings.FRONTEND_BASE_URL
@@ -132,15 +132,15 @@ def confirm_order_payment(user, session_id):
     metadata = session.get("metadata", {})
     order_id = metadata.get("order_id")
     if not order_id:
-        raise serializers.ValidationError({"detail": "Stripe session is not linked to an order."})
+        raise serializers.ValidationError({"detail": "Сессия Stripe не связана с заказом."})
 
     order = Order.objects.select_for_update().prefetch_related("items__product", "items__seller").get(pk=order_id, user=user)
 
     if order.payment_method != Order.PaymentMethod.CARD_ONLINE:
-        raise serializers.ValidationError({"detail": "Order does not require online payment."})
+        raise serializers.ValidationError({"detail": "Заказ не требует онлайн-оплаты."})
 
     if session.get("payment_status") != "paid":
-        raise serializers.ValidationError({"detail": "Payment is not completed yet."})
+        raise serializers.ValidationError({"detail": "Оплата еще не завершена."})
 
     updated_fields = []
     if order.status != Order.Status.PAID:

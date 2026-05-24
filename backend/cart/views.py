@@ -57,7 +57,7 @@ class CartItemAPIView(APIView):
         cart = get_or_create_cart(request.user)
         item = get_object_or_404(CartItem.objects.select_related("product"), pk=pk, cart=cart)
         if serializer.validated_data["quantity"] > item.product.stock:
-            return Response({"detail": "Not enough stock available."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Недостаточно товара на складе."}, status=status.HTTP_400_BAD_REQUEST)
         item.quantity = serializer.validated_data["quantity"]
         item.save(update_fields=["quantity"])
         cart.refresh_from_db()

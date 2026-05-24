@@ -23,6 +23,6 @@ class ProductReviewListCreateAPIView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         product = generics.get_object_or_404(Product, pk=self.kwargs["product_id"], is_active=True)
         if Review.objects.filter(user=self.request.user, product=product).exists():
-            raise ValidationError({"detail": "You have already reviewed this product."})
+            raise ValidationError({"detail": "Вы уже ознакомились с этим продуктом."})
         serializer.save(user=self.request.user, product=product)
 

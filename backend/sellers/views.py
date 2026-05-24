@@ -8,6 +8,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.db.models.functions import TruncDate
+from datetime import timedelta
+from django.utils import timezone
+
 from orders.models import OrderItem
 from products.serializers import ProductCardSerializer
 from products.services import get_product_queryset
@@ -87,10 +91,6 @@ class CurrentSellerProfileAPIView(APIView):
         serializer.save()
         return Response(SellerProfileDetailSerializer(seller, context={"request": request}).data)
 
-
-from django.db.models.functions import TruncDate
-from datetime import timedelta
-from django.utils import timezone
 
 class SellerDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSellerUser]
