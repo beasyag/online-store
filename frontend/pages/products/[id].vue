@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PaginatedResponse, Product, Review } from "~/types";
+import type { PaginatedResponse, Product, ProductListResponse, Review } from "~/types";
 import { useApiClient } from "~/composables/useApiClient";
 import { useApiError } from "~/composables/useApiError";
 import { useFormatters } from "~/composables/useFormatters";
@@ -36,6 +36,11 @@ const { data: similarData, refresh: refreshSimilar } = await useAsyncData(
   () => api.get<PaginatedResponse<Product>>(`/products/${productId.value}/similar/`),
   { watch: [productId] }
 );
+const { data: alsoBoughtData, refresh: refreshAlsoBought } = await useAsyncData(
+  `also-bought-${productId.value}`,
+  () => api.get<ProductListResponse>(`/products/${productId.value}/also-bought/`),
+  { watch: [productId] }
+);
 const { data: reviewsData, refresh: refreshReviews } = await useAsyncData(
   `reviews-${productId.value}`,
   () => api.get<PaginatedResponse<Review>>(`/products/${productId.value}/reviews/`),
@@ -43,6 +48,7 @@ const { data: reviewsData, refresh: refreshReviews } = await useAsyncData(
 );
 
 const similarProducts = computed(() => usePaginatedResults<Product>(similarData.value));
+const alsoBoughtProducts = computed(() => alsoBoughtData.value?.results || []);
 const reviews = computed(() => usePaginatedResults<Review>(reviewsData.value));
 const offers = computed(() => product.value?.seller_offers || []);
 const isFavorite = computed(() => (product.value ? favoritesStore.ids.has(product.value.id) || product.value.is_favorite : false));
@@ -83,7 +89,7 @@ const submitReview = async () => {
     reviewForm.rating = 5;
     reviewForm.text = "";
     reviewSuccess.value = "Отзыв успешно добавлен.";
-    await Promise.all([refreshReviews(), refreshProduct(), refreshSimilar()]);
+    await Promise.all([refreshReviews(), refreshProduct(), refreshSimilar(), refreshAlsoBought()]);
   } catch (error: any) {
     reviewError.value = getErrorMessage(error, "Не удалось отправить отзыв.");
   }
@@ -216,6 +222,13 @@ watchEffect(() => {
         <ReviewList :reviews="reviews" />
       </div>
     </section>
+
+    <RecommendationSection
+      v-if="alsoBoughtProducts.length"
+      title="С этим товаром покупают"
+      subtitle="На основе совместных покупок других пользователей"
+      :products="alsoBoughtProducts"
+    />
 
     <RecommendationSection title="Похожие товары" subtitle="Похожие по категории, цене и тегам" :products="similarProducts" />
   </div>

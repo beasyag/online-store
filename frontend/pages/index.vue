@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PaginatedResponse, Product, RecommendationResponse } from "~/types";
+import type { PaginatedResponse, Product, ProductListResponse, RecommendationResponse } from "~/types";
 import { useApiClient } from "~/composables/useApiClient";
 import { usePaginatedResults } from "~/composables/usePaginatedResults";
 import { useAuthStore } from "~/stores/auth";
@@ -34,6 +34,7 @@ const { data: catalogData, pending: catalogPending, error: catalogError, refresh
 );
 const { data: popularData } = await useAsyncData("popular-products", () => api.get<PaginatedResponse<Product>>("/products/popular/"));
 const { data: newData } = await useAsyncData("new-products", () => api.get<PaginatedResponse<Product>>("/products/new/"));
+const { data: trendingData } = await useAsyncData("trending-products", () => api.get<ProductListResponse>("/recommendations/trending/"));
 const { data: recommendationsData, refresh: refreshRecommendations } = await useAsyncData(
   "recommendations",
   () => api.get<RecommendationResponse>("/recommendations/"),
@@ -44,15 +45,16 @@ const dealProducts = computed(() => usePaginatedResults<Product>(dealsData.value
 const products = computed(() => usePaginatedResults<Product>(catalogData.value));
 const popularProducts = computed(() => usePaginatedResults<Product>(popularData.value));
 const newProducts = computed(() => usePaginatedResults<Product>(newData.value));
+const trendingProducts = computed(() => trendingData.value?.results || []);
 const catalogErrorMessage = computed(() =>
   catalogError.value ? "Не удалось загрузить каталог. Обновите страницу или попробуйте позже." : ""
 );
 const recommendationReasons = computed(() => {
   if (recommendationsData.value?.strategy === "personalized") {
     return [
-      "Похожие категории из просмотренных товаров",
-      "Сигналы из корзины, избранного и покупок",
-      "Усиление популярных и высоко оценённых позиций"
+      "Коллаборативная фильтрация и совместные покупки",
+      "Временной вес: недавние действия важнее",
+      "Диверсификация по категориям и продавцам"
     ];
   }
 
@@ -102,9 +104,16 @@ const runSearch = () => refreshCatalog();
 
     <RecommendationSection
       title="Рекомендуем вам"
-      :subtitle="recommendationsData?.strategy === 'personalized' ? 'На основе просмотров, корзины и покупок' : 'Популярные товары для новых посетителей'"
+      :subtitle="recommendationsData?.strategy === 'personalized' ? 'На основе просмотров, покупок и коллаборативной фильтрации' : 'Популярные товары для новых посетителей'"
       :products="recommendationsData?.results || []"
       :reasons="recommendationReasons"
+    />
+
+    <RecommendationSection
+      v-if="trendingProducts.length"
+      title="Сейчас в тренде"
+      subtitle="Товары с растущей популярностью за последнюю неделю"
+      :products="trendingProducts"
     />
 
     <RecommendationSection title="Популярное" subtitle="Товары, которые сейчас смотрят и покупают" :products="popularProducts" />

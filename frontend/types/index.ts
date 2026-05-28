@@ -148,6 +148,10 @@ export interface RecommendationResponse {
   results: Product[];
 }
 
+export interface ProductListResponse {
+  results: Product[];
+}
+
 export interface SellerDashboardResponse {
   product_count: number;
   orders_count: number;
