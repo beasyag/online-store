@@ -1,6 +1,11 @@
 import pytest
 from decimal import Decimal
+from io import StringIO
+
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
+
+from orders.models import Order, OrderItem
 from products.models import Product, Category, Tag, ProductViewHistory
 from sellers.models import SellerProfile
 from recommendations.services import (
@@ -140,3 +145,31 @@ class TestRecommendationAlgorithms:
         assert type_str == "personalized"
         assert product2 in recs
         assert len(recs) > 0
+
+
+@pytest.mark.django_db
+class TestEvaluateRecommendationsCommand:
+    def _purchase(self, user, seller, product):
+        order = Order.objects.create(user=user, total_amount=product.price)
+        OrderItem.objects.create(
+            order=order, product=product, seller=seller, quantity=1, price_at_purchase=product.price
+        )
+
+    def test_command_reports_metrics(self, user, seller, product1, product2, product3):
+        # User has two purchases and a view signal -> personalized path is exercised.
+        ProductViewHistory.objects.create(user=user, product=product1)
+        self._purchase(user, seller, product1)
+        self._purchase(user, seller, product2)
+
+        out = StringIO()
+        call_command("evaluate_recommendations", "--k", "5", "--min-purchases", "2", stdout=out)
+        output = out.getvalue()
+
+        assert "Evaluated users: 1" in output
+        assert "HitRate@5" in output
+        assert "Precision@5" in output
+
+    def test_command_handles_no_signals(self, db):
+        out = StringIO()
+        call_command("evaluate_recommendations", stdout=out)
+        assert "No users with usable signals" in out.getvalue()
